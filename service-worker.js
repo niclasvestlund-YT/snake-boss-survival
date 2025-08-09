@@ -1,24 +1,9 @@
 
-const CACHE_NAME = 'snake-boss-v5.1b';
-const ASSETS = [
-  './',
-  './index.html',
-  './mobile.html',
-  './manifest.json',
-  './service-worker.js',
-  './icon-192.png',
-  './icon-512.png',
-  './soundtrack.mp3'
-];
-self.addEventListener('install', (e) => { self.skipWaiting(); e.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS))); });
-self.addEventListener('activate', (e) => { e.waitUntil((async () => { const keys = await caches.keys(); await Promise.all(keys.map(k => k === CACHE_NAME ? null : caches.delete(k))); await self.clients.claim(); })()); });
-self.addEventListener('fetch', (e) => {
-  const url = new URL(e.request.url);
-  if (url.origin !== location.origin) return;
-  e.respondWith((async () => {
-    const cache = await caches.open(CACHE_NAME);
-    const cached = await cache.match(e.request);
-    const fetchPromise = fetch(e.request).then(res => { if (res && res.status === 200 && e.request.method === 'GET') { cache.put(e.request, res.clone()); } return res; }).catch(() => cached);
-    return cached || fetchPromise;
-  })());
-});
+const CACHE_NAME='snake-boss-v6-0';
+const ASSETS=['./','./index.html','./mobile.html','./manifest.json','./service-worker.js','./icon-192.png','./icon-512.png','./snake_boss_logo.png'];
+self.addEventListener('install',e=>{self.skipWaiting();e.waitUntil(caches.open(CACHE_NAME).then(c=>c.addAll(ASSETS)));});
+self.addEventListener('activate',e=>{e.waitUntil((async()=>{const ks=await caches.keys();await Promise.all(ks.map(k=>k===CACHE_NAME?null:caches.delete(k)));await self.clients.claim();})());});
+self.addEventListener('fetch',e=>{const u=new URL(e.request.url);if(u.origin!==location.origin)return;
+  e.respondWith((async()=>{const c=await caches.open(CACHE_NAME);const m=await c.match(e.request);
+    const f=fetch(e.request).then(r=>{if(r&&r.status===200&&e.request.method==='GET')c.put(e.request,r.clone());return r;}).catch(()=>m);
+    return m||f;})());});

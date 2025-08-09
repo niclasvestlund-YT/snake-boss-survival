@@ -1,8 +1,8 @@
 {
   "name": "Snake Boss Survival",
   "short_name": "Snake Boss",
-  "description": "Ät före bossen. Undvik krockar. Slå rekordet.",
-  "start_url": "mobile.html",
+  "description": "Outrace the boss to every bite. Slim UI. Mobile-first.",
+  "start_url": "index.html",
   "scope": "./",
   "display": "standalone",
   "theme_color": "#0b0f1d",
