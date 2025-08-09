@@ -1,1 +1,327 @@
-<paste the full index.html content from above>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Snake Boss — Desktop</title>
+<link rel="manifest" href="manifest.json" />
+<meta name="theme-color" content="#0a0f17" />
+<style>
+  :root{
+    --bg0:#0a0f17; --bg1:#0e1320; --g1:#00FFE0; --g2:#00A2FF; --g3:#7B61FF;
+    --grid-a:rgba(255,255,255,.06); --grid-b:rgba(0,0,0,0); --vign:rgba(0,0,0,.45);
+    --hud:#c8d4e7; --hud-dim:#6f7a8b; --chip:#1e2a3b;
+    --snake:#3eea62; --boss:#ff6f6f; --food:#ffd24a;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%; margin:0; overflow:hidden; background:#000; color:#e8eef7; font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial; -webkit-font-smoothing:antialiased}
+  .wrap{position:relative; width:100%; height:100svh; display:grid; grid-template-rows:auto 1fr auto; background:transparent}
+  header, footer{display:flex; align-items:center; justify-content:space-between; padding:12px 16px; background:rgba(10,15,23,.85); backdrop-filter:saturate(1.2) blur(10px)}
+  header .left, header .right{display:flex; gap:8px; align-items:center}
+  .logo{width:18px;height:18px; border-radius:4px; background:url('snake_boss_logo.png') center/cover no-repeat}
+  .chip{background:var(--chip); color:#bfe1ff; border:1px solid rgba(255,255,255,.08); padding:8px 12px; border-radius:12px; font-weight:600; cursor:pointer; user-select:none}
+  .chip:focus{outline:2px solid #3aa3ff}
+  .hud{position:absolute; inset:64px 16px auto 16px; display:flex; justify-content:space-between; pointer-events:none}
+  .hud .box{background:rgba(0,0,0,.35); border:1px solid rgba(255,255,255,.06); padding:8px 12px; border-radius:12px; color:var(--hud); font-weight:800; letter-spacing:.08em}
+  .bg, canvas{position:absolute; inset:0; display:block}
+  canvas{touch-action:none}
+  .stage{position:relative; margin:12px; border-radius:24px; overflow:hidden; box-shadow:0 10px 40px rgba(0,0,0,.45); border:1px solid rgba(255,255,255,.08); background:rgba(8,12,18,.9)}
+  .overlay{position:absolute; inset:0; display:grid; place-items:center; text-align:center; background:linear-gradient(180deg, rgba(8,12,18,.72), rgba(8,12,18,.55)); opacity:0; pointer-events:none; transition:opacity .2s}
+  .overlay.show{opacity:1; pointer-events:auto}
+  .card{padding:20px 24px; border-radius:16px; background:rgba(20,26,36,.75); border:1px solid rgba(255,255,255,.08); box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  .title{font-size:28px; font-weight:900; margin:0 0 4px; text-shadow:0 6px 24px rgba(0,255,204,.25)}
+  .subtitle{margin:0 0 16px; color:#9fb0c8}
+  .btn{padding:10px 16px; border-radius:999px; border:1px solid rgba(255,255,255,.12); background:#14324f; color:#d9eaff; font-weight:700; cursor:pointer}
+  .row{display:flex; gap:8px; justify-content:center; margin-top:10px}
+  footer{gap:12px; justify-content:space-between}
+  footer a{color:#bfe1ff; text-decoration:none}
+  /* Dopamine background */
+  .bg{
+    pointer-events:none;
+    background:
+      linear-gradient(0deg, var(--grid-b), var(--grid-b)) padding-box,
+      repeating-linear-gradient(0deg, var(--grid-a) 0 2px, transparent 2px 64px),
+      repeating-linear-gradient(90deg, var(--grid-a) 0 2px, transparent 2px 64px),
+      conic-gradient(from 0deg at 30% 30%, var(--g1), var(--g2), var(--g3), var(--g2), var(--g1)),
+      radial-gradient(120% 120% at 50% 30%, transparent 30%, var(--vign) 70%),
+      linear-gradient(180deg, var(--bg0), var(--bg1));
+    filter:saturate(1.15) contrast(1.05);
+    animation:swirl 22s linear infinite, breathe 6s ease-in-out infinite;
+  }
+  .bg.pulse{animation:pulse 500ms ease-out, swirl 22s linear infinite, breathe 6s ease-in-out infinite}
+  @keyframes swirl{to{background-position:0 0,0 0,0 0,360deg,0 0,0 0}}
+  @keyframes breathe{0%,100%{filter:saturate(1.05) contrast(1.02)}50%{filter:saturate(1.2) contrast(1.07)}}
+  @keyframes pulse{0%{filter:saturate(1.6) brightness(1.15)}100%{filter:saturate(1.15) brightness(1)}}
+  @media (prefers-reduced-motion:reduce){.bg{animation:none}}
+</style>
+<script>
+// Redirect phones to mobile page
+const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+const isSmall = Math.min(window.innerWidth, window.innerHeight) < 820;
+if ((isTouch || isSmall) && !location.pathname.endsWith('mobile.html')) {
+  location.replace('mobile.html');
+}
+</script>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="left">
+      <div class="logo" aria-hidden="true"></div>
+      <strong>Snake Boss — Desktop</strong>
+    </div>
+    <div class="right">
+      <button class="chip" id="themeBtn" title="Change theme">Theme</button>
+      <a class="chip" href="mobile.html" title="Open Mobile">Mobile</a>
+    </div>
+  </header>
+
+  <div class="stage">
+    <div class="bg" id="bg"></div>
+    <canvas id="game"></canvas>
+
+    <div class="hud">
+      <div class="box">SCORE <span id="score">0</span></div>
+      <div class="box">BEST <span id="best">0</span></div>
+    </div>
+
+    <div class="overlay show" id="overlay">
+      <div class="card">
+        <h1 class="title" id="ovTitle">Your move, human!</h1>
+        <p class="subtitle" id="ovMsg">Press Space or click to start. Arrows/WASD to turn.</p>
+        <div class="row">
+          <button class="btn" id="playBtn">Start</button>
+          <button class="chip" id="muteBtn" aria-pressed="false">Mute</button>
+          <button class="chip" id="shareBtn" hidden>Share</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <small>© Snake Boss v6.0</small>
+    <a href="https://youtube.com/@niclasvestlund" target="_blank" rel="noopener">YouTube</a>
+  </footer>
+</div>
+
+<script>
+// ---------- Theme handling ----------
+const THEMES = {
+  neonNight:{bg0:'#0a0f17',bg1:'#0e1320',g1:'#00FFE0',g2:'#00A2FF',g3:'#7B61FF'},
+  cyberSunset:{bg0:'#1a0f17',bg1:'#2a0f24',g1:'#FF7A00',g2:'#FF3D81',g3:'#FFD166'},
+  arcticPop:{bg0:'#091216',bg1:'#0c1b24',g1:'#7EE8FA',g2:'#EEC0C6',g3:'#B8FF6A'},
+};
+function setTheme(name){ const t=THEMES[name]||THEMES.neonNight; const r=document.documentElement;
+  r.style.setProperty('--bg0',t.bg0); r.style.setProperty('--bg1',t.bg1);
+  r.style.setProperty('--g1',t.g1); r.style.setProperty('--g2',t.g2); r.style.setProperty('--g3',t.g3);
+  localStorage.setItem('theme',name);
+}
+setTheme(localStorage.getItem('theme')||'neonNight');
+document.getElementById('themeBtn').onclick=()=>{
+  const order=['neonNight','cyberSunset','arcticPop']; const cur=localStorage.getItem('theme')||order[0];
+  const next=order[(order.indexOf(cur)+1)%order.length]; setTheme(next);
+};
+
+// ---------- Canvas & loop ----------
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d', { alpha:false });
+ctx.imageSmoothingEnabled = false;
+const bg = document.getElementById('bg');
+
+function fitCanvas(){
+  const dpr = Math.min(3, window.devicePixelRatio||1);
+  const w = document.documentElement.clientWidth;
+  const h = window.visualViewport ? Math.floor(window.visualViewport.height) : window.innerHeight;
+  canvas.width = w*dpr; canvas.height = h*dpr;
+  canvas.style.width = w+'px'; canvas.style.height = h+'px';
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+}
+addEventListener('resize', fitCanvas, {passive:true});
+if (window.visualViewport) visualViewport.addEventListener('resize', fitCanvas, {passive:true});
+fitCanvas();
+
+// ---------- Game state ----------
+let state='intro', rafId=0, acc=0, last=0;
+const STEP=1000/12, MAX_ACC=STEP*5;
+let cols=0, rows=0, cell=24;
+let snake=[], sDir='RIGHT', grow=0;
+let boss=[], bDir='LEFT';
+let food={x:10,y:10};
+let score=0, best=Number(localStorage.getItem('best')||0);
+document.getElementById('best').textContent = best;
+
+function layoutGrid(){
+  // pick cell size ~24px that fully fits screen
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  cell = Math.max(16, Math.floor(Math.min(w,h)/28));
+  cols = Math.floor(w/cell); rows = Math.floor(h/cell);
+}
+layoutGrid();
+
+function makeSnake(){ const y=Math.floor(rows/2); return [{x:3,y},{x:2,y},{x:1,y}]; }
+function makeBoss(){ const y=Math.floor(rows/2); const x=cols-4; return [{x,y},{x:x+1,y},{x:x+2,y}]; }
+
+function placeFood(){
+  while(true){
+    const x = (Math.random()*cols|0), y=(Math.random()*rows|0);
+    if (![...snake,...boss].some(s=>s.x===x && s.y===y)){ food={x,y}; return; }
+  }
+}
+
+function resetGame(){
+  layoutGrid();
+  snake = makeSnake(); sDir='RIGHT'; grow=0;
+  boss = makeBoss(); bDir='LEFT';
+  placeFood();
+  score=0; setScore(score);
+  shakeT=0; bossFlashT=0;
+}
+
+function setScore(v){ if (setScore._p!==v){ document.getElementById('score').textContent=v; setScore._p=v; }}
+
+// ---------- Overlay ----------
+const overlay=document.getElementById('overlay');
+const ovTitle=document.getElementById('ovTitle');
+const ovMsg=document.getElementById('ovMsg');
+const playBtn=document.getElementById('playBtn');
+const muteBtn=document.getElementById('muteBtn');
+const shareBtn=document.getElementById('shareBtn');
+
+function showOverlay(title,msg,playLabel='Play again'){
+  ovTitle.textContent=title; ovMsg.textContent=msg;
+  playBtn.textContent=playLabel;
+  overlay.classList.add('show'); overlay.style.pointerEvents='auto';
+  shareBtn.hidden = !navigator.share;
+}
+function hideOverlay(){ overlay.classList.remove('show'); overlay.style.pointerEvents='none'; }
+
+playBtn.onclick = startGame;
+
+// ---------- Input (desktop) ----------
+addEventListener('keydown', (e)=>{
+  if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' ','Space','KeyW','KeyA','KeyS','KeyD'].includes(e.code)) e.preventDefault();
+  if (state!=='playing' && (e.code==='Space' || e.code==='Enter')) startGame();
+  const key=e.code;
+  if (state==='playing'){
+    if (key==='ArrowUp'||key==='KeyW') turn('UP');
+    if (key==='ArrowDown'||key==='KeyS') turn('DOWN');
+    if (key==='ArrowLeft'||key==='KeyA') turn('LEFT');
+    if (key==='ArrowRight'||key==='KeyD') turn('RIGHT');
+  }
+}, {passive:false});
+
+// ---------- Audio ----------
+let audioOn = true;
+const AudioCtx = window.AudioContext||window.webkitAudioContext;
+const ac = new AudioCtx();
+let gulpBuf;
+fetch('soundtrack.mp3').then(r=>r.arrayBuffer()).then(b=>ac.decodeAudioData(b)).then(buf=>gulpBuf=buf).catch(()=>{});
+function playGulp(){ if(!audioOn||!gulpBuf) return; const s=ac.createBufferSource(); s.buffer=gulpBuf; s.connect(ac.destination); s.start(0); }
+muteBtn.onclick=()=>{
+  audioOn = !audioOn; muteBtn.setAttribute('aria-pressed', String(!audioOn));
+  if (audioOn) ac.resume(); else ac.suspend();
+};
+
+// ---------- Effects ----------
+let shakeT=0, bossFlashT=0;
+function pulse(){ bg.classList.remove('pulse'); void bg.offsetWidth; bg.classList.add('pulse'); }
+function triggerShake(ms=120){ shakeT=ms; }
+
+// ---------- Game logic ----------
+function turn(dir){
+  if ((dir==='UP'&&sDir==='DOWN')||(dir==='DOWN'&&sDir==='UP')||(dir==='LEFT'&&sDir==='RIGHT')||(dir==='RIGHT'&&sDir==='LEFT')) return;
+  sDir=dir;
+}
+
+function step(){
+  // player
+  const head={...snake[0]};
+  if (sDir==='UP') head.y--; if (sDir==='DOWN') head.y++; if (sDir==='LEFT') head.x--; if (sDir==='RIGHT') head.x++;
+  // wrap
+  head.x=(head.x+cols)%cols; head.y=(head.y+rows)%rows;
+  // collide with self
+  if (snake.some((s,i)=>i>0 && s.x===head.x && s.y===head.y)) return gameOver('You bit yourself!');
+  snake.unshift(head);
+  if (head.x===food.x && head.y===food.y){
+    grow+=2; score++; setScore(score); pulse(); playGulp(); placeFood();
+  }
+  if (grow>0) { grow--; } else { snake.pop(); }
+
+  // boss ai: greedy-ish
+  const bhead={...boss[0]};
+  const dx = Math.sign(food.x - bhead.x);
+  const dy = Math.sign(food.y - bhead.y);
+  if (Math.random()<0.6){
+    bhead.x += dx!==0 ? dx : 0;
+  } else {
+    bhead.y += dy!==0 ? dy : 0;
+  }
+  bhead.x=(bhead.x+cols)%cols; bhead.y=(bhead.y+rows)%rows;
+  // head-only collision
+  if (bhead.x===head.x && bhead.y===head.y) return gameOver('Head-on collision!');
+  boss.unshift(bhead);
+  if (bhead.x===food.x && bhead.y===food.y){
+    bossFlashT=180; triggerShake(); pulse(); playGulp(); placeFood();
+  } else {
+    boss.pop();
+  }
+}
+
+function render(){
+  ctx.save();
+  if (shakeT>0){ const m=Math.min(8,2+shakeT/20); ctx.translate((Math.random()*2-1)*m,(Math.random()*2-1)*m); shakeT-=16; }
+
+  ctx.clearRect(0,0,canvas.clientWidth,canvas.clientHeight);
+  drawCell(food.x,food.y, '--food');
+  ctx.save(); if (bossFlashT>0){ ctx.globalAlpha=0.7; bossFlashT-=16; }
+  boss.forEach((p,i)=>drawCell(p.x,p.y, '--boss', i===0?1:0.85));
+  ctx.restore();
+  snake.forEach((p,i)=>drawCell(p.x,p.y, '--snake', i===0?1:0.9));
+  ctx.restore();
+}
+
+function drawCell(cx,cy,varName,alpha=1){
+  const x=cx*cell, y=cy*cell;
+  ctx.globalAlpha=alpha;
+  ctx.fillStyle=getComputedStyle(document.documentElement).getPropertyValue(varName).trim()||'#fff';
+  ctx.fillRect(x+2,y+2,cell-4,cell-4);
+  ctx.globalAlpha=1;
+}
+
+function frame(ts){
+  if (!last) last=ts;
+  let dt=ts-last; last=ts;
+  acc+=dt; if (acc>MAX_ACC) acc=MAX_ACC;
+  while (acc>=STEP){ if(state==='playing') step(); acc-=STEP; }
+  render();
+  rafId=requestAnimationFrame(frame);
+}
+
+function startGame(){
+  state='playing'; hideOverlay(); resetGame();
+  if (!rafId) rafId=requestAnimationFrame(frame);
+}
+
+function gameOver(reason){
+  state='dead';
+  best = Math.max(best, score); localStorage.setItem('best', best); document.getElementById('best').textContent=best;
+  showOverlay('Beat me to it!', 'Boss is getting stronger!');
+  if (navigator.share){
+    shareBtn.hidden=false;
+    shareBtn.onclick=()=>navigator.share({title:'Snake Boss', text:`I scored ${score} (Best ${best}) racing the AI boss!`, url:location.origin}).catch(()=>{});
+  }
+}
+
+// start loop idle
+rafId=requestAnimationFrame(frame);
+showOverlay('Your move, human!', 'Press Space or click to start. Arrows/WASD to turn.');
+</script>
+
+<script>
+// PWA
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', ()=>navigator.serviceWorker.register('service-worker.js'));
+}
+</script>
+</body>
+</html>

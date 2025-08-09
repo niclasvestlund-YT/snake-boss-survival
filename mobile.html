@@ -1,1 +1,190 @@
-<paste the full mobile.html content from above>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Snake Boss — Mobile</title>
+<link rel="manifest" href="manifest.json" />
+<meta name="theme-color" content="#0a0f17" />
+<style>
+  :root{
+    --bg0:#0a0f17; --bg1:#0e1320; --g1:#00FFE0; --g2:#00A2FF; --g3:#7B61FF;
+    --grid-a:rgba(255,255,255,.06); --grid-b:rgba(0,0,0,0); --vign:rgba(0,0,0,.45);
+    --hud:#c8d4e7; --chip:#1e2a3b;
+    --snake:#3eea62; --boss:#ff6f6f; --food:#ffd24a;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%; margin:0; overflow:hidden; background:#000; color:#e8eef7; font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial}
+  .wrap{position:relative; width:100%; height:100svh; display:grid; grid-template-rows:auto 1fr auto}
+  header, footer{display:flex; align-items:center; justify-content:space-between; padding:10px 12px; background:rgba(10,15,23,.85); backdrop-filter:saturate(1.2) blur(10px)}
+  .logo{width:16px;height:16px;border-radius:4px;background:url('snake_boss_logo.png') center/cover no-repeat}
+  .chip{background:var(--chip); color:#bfe1ff; border:1px solid rgba(255,255,255,.08); padding:8px 12px; border-radius:12px; font-weight:700}
+  .stage{position:relative; margin:10px; border-radius:20px; overflow:hidden; box-shadow:0 10px 40px rgba(0,0,0,.45); border:1px solid rgba(255,255,255,.08); background:rgba(8,12,18,.9)}
+  .bg, canvas{position:absolute; inset:0; display:block}
+  canvas{touch-action:none}
+  .hud{position:absolute; inset:56px 12px auto 12px; display:flex; justify-content:space-between; pointer-events:none}
+  .box{background:rgba(0,0,0,.35); border:1px solid rgba(255,255,255,.06); padding:7px 10px; border-radius:11px; color:var(--hud); font-weight:900; letter-spacing:.08em}
+  .overlay{position:absolute; inset:0; display:grid; place-items:center; text-align:center; background:linear-gradient(180deg, rgba(8,12,18,.7), rgba(8,12,18,.55)); opacity:0; pointer-events:none; transition:opacity .2s}
+  .overlay.show{opacity:1; pointer-events:auto}
+  .card{padding:18px; border-radius:14px; background:rgba(20,26,36,.76); border:1px solid rgba(255,255,255,.08)}
+  .title{font-size:22px; font-weight:900; margin:0 0 4px; text-shadow:0 6px 24px rgba(0,255,204,.25)}
+  .subtitle{margin:0 0 12px; color:#9fb0c8; font-size:14px}
+  .btn{padding:10px 14px; border-radius:999px; border:1px solid rgba(255,255,255,.12); background:#14324f; color:#d9eaff; font-weight:800}
+  footer a{color:#bfe1ff; text-decoration:none}
+  /* Background */
+  .bg{
+    pointer-events:none;
+    background:
+      linear-gradient(0deg, var(--grid-b), var(--grid-b)) padding-box,
+      repeating-linear-gradient(0deg, var(--grid-a) 0 2px, transparent 2px 64px),
+      repeating-linear-gradient(90deg, var(--grid-a) 0 2px, transparent 2px 64px),
+      conic-gradient(from 0deg at 30% 30%, var(--g1), var(--g2), var(--g3), var(--g2), var(--g1)),
+      radial-gradient(120% 120% at 50% 30%, transparent 30%, var(--vign) 70%),
+      linear-gradient(180deg, var(--bg0), var(--bg1));
+    filter:saturate(1.15) contrast(1.05);
+    animation:swirl 22s linear infinite, breathe 6s ease-in-out infinite;
+  }
+  .bg.pulse{animation:pulse 500ms ease-out, swirl 22s linear infinite, breathe 6s ease-in-out infinite}
+  @keyframes swirl{to{background-position:0 0,0 0,0 0,360deg,0 0,0 0}}
+  @keyframes breathe{0%,100%{filter:saturate(1.05) contrast(1.02)}50%{filter:saturate(1.2) contrast(1.07)}}
+  @keyframes pulse{0%{filter:saturate(1.6) brightness(1.15)}100%{filter:saturate(1.15) brightness(1)}}
+  @media (prefers-reduced-motion:reduce){.bg{animation:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div style="display:flex;align-items:center;gap:8px">
+      <div class="logo" aria-hidden="true"></div>
+      <strong>Snake Boss — Mobile</strong>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="chip" id="themeBtn">Theme</button>
+      <a class="chip" href="index.html">Desktop</a>
+    </div>
+  </header>
+
+  <div class="stage">
+    <div class="bg" id="bg"></div>
+    <canvas id="game"></canvas>
+
+    <div class="hud">
+      <div class="box">SCORE <span id="score">0</span></div>
+      <div class="box">BEST <span id="best">0</span></div>
+    </div>
+
+    <div class="overlay show" id="overlay">
+      <div class="card">
+        <h1 class="title" id="ovTitle">Your move, human!</h1>
+        <p class="subtitle" id="ovMsg">Hold & drag on the game area.</p>
+        <div style="display:flex;gap:8px;justify-content:center">
+          <button class="btn" id="playBtn">Play again</button>
+          <button class="chip" id="muteBtn" aria-pressed="false">Mute</button>
+          <button class="chip" id="shareBtn" hidden>Share</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <small>© Snake Boss v6.0</small>
+    <a href="https://youtube.com/@niclasvestlund" target="_blank" rel="noopener">YouTube</a>
+  </footer>
+</div>
+
+<script>
+const THEMES={neonNight:{bg0:'#0a0f17',bg1:'#0e1320',g1:'#00FFE0',g2:'#00A2FF',g3:'#7B61FF'},cyberSunset:{bg0:'#1a0f17',bg1:'#2a0f24',g1:'#FF7A00',g2:'#FF3D81',g3:'#FFD166'},arcticPop:{bg0:'#091216',bg1:'#0c1b24',g1:'#7EE8FA',g2:'#EEC0C6',g3:'#B8FF6A'}};
+function setTheme(name){const t=THEMES[name]||THEMES.neonNight;const r=document.documentElement;r.style.setProperty('--bg0',t.bg0);r.style.setProperty('--bg1',t.bg1);r.style.setProperty('--g1',t.g1);r.style.setProperty('--g2',t.g2);r.style.setProperty('--g3',t.g3);localStorage.setItem('theme',name);}
+setTheme(localStorage.getItem('theme')||'neonNight');
+document.getElementById('themeBtn').onclick=()=>{const order=['neonNight','cyberSunset','arcticPop'];const cur=localStorage.getItem('theme')||order[0];setTheme(order[(order.indexOf(cur)+1)%order.length]);};
+
+// Canvas & DPR
+const canvas=document.getElementById('game'); const ctx=canvas.getContext('2d',{alpha:false}); ctx.imageSmoothingEnabled=false;
+const bg=document.getElementById('bg');
+function fit(){const dpr=Math.min(3,devicePixelRatio||1); const w=document.documentElement.clientWidth; const h=window.visualViewport?Math.floor(visualViewport.height):innerHeight; canvas.width=w*dpr; canvas.height=h*dpr; canvas.style.width=w+'px'; canvas.style.height=h+'px'; ctx.setTransform(dpr,0,0,dpr,0,0);} addEventListener('resize',fit,{passive:true}); if (window.visualViewport) visualViewport.addEventListener('resize',fit,{passive:true}); fit();
+
+// Game (same rules as desktop)
+let state='intro', rafId=0, acc=0, last=0; const STEP=1000/12, MAX_ACC=STEP*5;
+let cols=0, rows=0, cell=22;
+let snake=[], sDir='RIGHT', grow=0, boss=[], bDir='LEFT', food={x:5,y:5};
+let score=0, best=Number(localStorage.getItem('best')||0);
+document.getElementById('best').textContent=best;
+
+function layout(){ const w=canvas.clientWidth, h=canvas.clientHeight; cell=Math.max(16,Math.floor(Math.min(w,h)/28)); cols=Math.floor(w/cell); rows=Math.floor(h/cell);}
+function makeSnake(){const y=Math.floor(rows/2);return[{x:3,y},{x:2,y},{x:1,y}]}
+function makeBoss(){const y=Math.floor(rows/2);const x=cols-4;return[{x,y},{x:x+1,y},{x:x+2,y}]}
+function placeFood(){while(true){const x=(Math.random()*cols|0),y=(Math.random()*rows|0); if (![...snake,...boss].some(s=>s.x===x&&s.y===y)){food={x,y};return;}}}
+function reset(){layout(); snake=makeSnake(); sDir='RIGHT'; grow=0; boss=makeBoss(); bDir='LEFT'; placeFood(); score=0; setScore(0); shakeT=0; bossFlashT=0;}
+function setScore(v){ if (setScore._p!==v){ document.getElementById('score').textContent=v; setScore._p=v; }}
+
+// Overlay
+const overlay=document.getElementById('overlay'); const ovTitle=document.getElementById('ovTitle'); const ovMsg=document.getElementById('ovMsg'); const playBtn=document.getElementById('playBtn'); const muteBtn=document.getElementById('muteBtn'); const shareBtn=document.getElementById('shareBtn');
+function show(title,msg){ovTitle.textContent=title; ovMsg.textContent=msg; overlay.classList.add('show'); overlay.style.pointerEvents='auto'; shareBtn.hidden=!navigator.share;}
+function hide(){overlay.classList.remove('show'); overlay.style.pointerEvents='none';}
+playBtn.onclick=start;
+
+function start(){state='playing'; hide(); reset(); if (!rafId) rafId=requestAnimationFrame(loop);}
+
+// Input: drag to steer
+let down=false, sx=0, sy=0;
+canvas.addEventListener('pointerdown',e=>{down=true; sx=e.clientX; sy=e.clientY;},{passive:true});
+canvas.addEventListener('pointermove',e=>{ if(!down||state!=='playing')return; const dx=e.clientX-sx, dy=e.clientY-sy; const dist=Math.hypot(dx,dy); if(dist<12) return; const ang=((Math.atan2(dy,dx)*180/Math.PI)+360)%360; let dir; if(ang>=45&&ang<135)dir='DOWN'; else if(ang>=135&&ang<225)dir='LEFT'; else if(ang>=225&&ang<315)dir='UP'; else dir='RIGHT'; turn(dir); navigator.vibrate?.(8); sx=e.clientX; sy=e.clientY; },{passive:true});
+addEventListener('pointerup',()=>down=false,{passive:true});
+
+function turn(dir){ if((dir==='UP'&&sDir==='DOWN')||(dir==='DOWN'&&sDir==='UP')||(dir==='LEFT'&&sDir==='RIGHT')||(dir==='RIGHT'&&sDir==='LEFT'))return; sDir=dir; }
+
+// Audio
+let audioOn=true; const AC=window.AudioContext||window.webkitAudioContext; const ac=new AC(); let gulpBuf;
+fetch('soundtrack.mp3').then(r=>r.arrayBuffer()).then(b=>ac.decodeAudioData(b)).then(buf=>gulpBuf=buf).catch(()=>{});
+function gulp(){ if(!audioOn||!gulpBuf) return; const s=ac.createBufferSource(); s.buffer=gulpBuf; s.connect(ac.destination); s.start(0); }
+muteBtn.onclick=()=>{audioOn=!audioOn; muteBtn.setAttribute('aria-pressed',String(!audioOn)); if(audioOn) ac.resume(); else ac.suspend();}
+
+// Effects
+let shakeT=0, bossFlashT=0;
+function pulse(){ const el=bg; el.classList.remove('pulse'); void el.offsetWidth; el.classList.add('pulse'); }
+function shake(ms=120){ shakeT=ms; }
+
+// Step/render
+function step(){
+  const h={...snake[0]}; if(sDir==='UP')h.y--; if(sDir==='DOWN')h.y++; if(sDir==='LEFT')h.x--; if(sDir==='RIGHT')h.x++;
+  h.x=(h.x+cols)%cols; h.y=(h.y+rows)%rows;
+  if (snake.some((s,i)=>i>0 && s.x===h.x && s.y===h.y)) return over('You bit yourself!');
+  snake.unshift(h);
+  if(h.x===food.x&&h.y===food.y){grow+=2; score++; setScore(score); pulse(); gulp(); placeFood();}
+  if(grow>0)grow--; else snake.pop();
+
+  const bh={...boss[0]}; const dx=Math.sign(food.x-bh.x), dy=Math.sign(food.y-bh.y);
+  if(Math.random()<0.6) bh.x+=dx!==0?dx:0; else bh.y+=dy!==0?dy:0;
+  bh.x=(bh.x+cols)%cols; bh.y=(bh.y+rows)%rows;
+  if (bh.x===h.x && bh.y===h.y) return over('Head-on collision!');
+  boss.unshift(bh);
+  if(bh.x===food.x&&bh.y===food.y){bossFlashT=180; shake(); pulse(); gulp(); placeFood();} else boss.pop();
+}
+
+function drawCell(cx,cy,varName,alpha=1){ const x=cx*cell,y=cy*cell; ctx.globalAlpha=alpha; ctx.fillStyle=getComputedStyle(document.documentElement).getPropertyValue(varName).trim()||'#fff'; ctx.fillRect(x+2,y+2,cell-4,cell-4); ctx.globalAlpha=1; }
+
+function render(){
+  ctx.save();
+  if(shakeT>0){ const m=Math.min(8,2+shakeT/20); ctx.translate((Math.random()*2-1)*m,(Math.random()*2-1)*m); shakeT-=16; }
+  ctx.clearRect(0,0,canvas.clientWidth,canvas.clientHeight);
+  drawCell(food.x,food.y,'--food');
+  ctx.save(); if(bossFlashT>0){ ctx.globalAlpha=.7; bossFlashT-=16; } boss.forEach((p,i)=>drawCell(p.x,p.y,'--boss', i===0?1:0.85)); ctx.restore();
+  snake.forEach((p,i)=>drawCell(p.x,p.y,'--snake', i===0?1:0.9));
+  ctx.restore();
+}
+
+function loop(ts){ if(!last) last=ts; let dt=ts-last; last=ts; acc+=dt; if(acc>MAX_ACC) acc=MAX_ACC; while(acc>=STEP){ if(state==='playing') step(); acc-=STEP; } render(); rafId=requestAnimationFrame(loop); }
+
+function over(){ state='dead'; best=Math.max(best,score); localStorage.setItem('best',best); document.getElementById('best').textContent=best; show('Beat me to it!','Boss is getting stronger!'); if(navigator.share){shareBtn.hidden=false; shareBtn.onclick=()=>navigator.share({title:'Snake Boss',text:`I scored ${score} (Best ${best}) racing the AI boss!`,url:location.origin}).catch(()=>{}); }}
+
+rafId=requestAnimationFrame(loop);
+show('Your move, human!','Hold & drag on the game area.');
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', ()=>navigator.serviceWorker.register('service-worker.js'));
+}
+</script>
+</body>
+</html>
