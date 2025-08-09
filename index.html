@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-<title>Snake Boss Survival — v4.0.4</title>
+<title>Snake Boss Survival — v4.0.6</title>
 <meta name="theme-color" content="#0b0f1d">
 <style>
   :root{
@@ -15,14 +15,14 @@
   *{box-sizing:border-box} html,body{height:100%}
   body{margin:0; color:#e8f0ff; font-family:Inter, system-ui, Segoe UI, Roboto, Arial;
        background:linear-gradient(180deg, var(--bg1), var(--bg2));
-       display:grid; grid-template-rows:auto 1fr auto; padding:12px 12px 10px}
+       display:grid; grid-template-rows:auto 1fr auto; padding:10px 10px 8px}
   a{color:#a6ffe0; text-decoration:none} a:hover{text-decoration:underline}
 
   /* Header */
   .header{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:8px}
   .brand{display:flex; align-items:center; gap:10px}
-  .logo{width:28px; height:28px}
-  .titleTxt{font-weight:800; letter-spacing:.5px; font-size:clamp(16px,3.8vw,24px)}
+  .logo{width:26px; height:26px}
+  .titleTxt{font-weight:800; letter-spacing:.5px; font-size:clamp(16px,3.6vw,22px)}
   .actions{display:flex; align-items:center; gap:6px}
   .pill{padding:8px 12px; background:var(--glass); border:1px solid var(--border); border-radius:12px; -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); box-shadow:0 10px 30px rgba(0,0,0,.25); font-size:14px}
   .btn{cursor:pointer; user-select:none}
@@ -31,7 +31,7 @@
   /* Stage */
   .frame{width:min(1200px,100%); margin:0 auto}
   .stage{position:relative}
-  canvas{width:100%; background:#0a0f1a;
+  canvas{width:100%; height:auto; aspect-ratio:16/10; background:#0a0f1a; touch-action:none;
          border-radius:20px; border:1px solid var(--border);
          box-shadow:0 20px 60px rgba(0,0,0,.45); display:block; image-rendering: pixelated; outline:none}
 
@@ -45,6 +45,29 @@
   .score{font-weight:900; font-size:clamp(26px,6vw,52px); line-height:1; color:var(--head);
          text-shadow:0 6px 18px rgba(71,209,110,.45)}
   .best{font-size:12px; color:#b8c7e6}
+
+  /* Help chip */
+  #controlChip{ position:absolute; right:12px; top:12px; z-index:22;
+    background:rgba(17,25,48,.6); border:1px solid rgba(255,255,255,.12);
+    padding:6px 10px; border-radius:12px; font-size:12px; backdrop-filter:blur(8px) }
+
+  /* Onboarding */
+  #onboard{ position:absolute; inset:0; display:none; place-items:end center; padding-bottom:14vh; z-index:21; }
+  .hintPulse{ position:absolute; left:50%; top:50%; width:110px; height:110px; border-radius:999px;
+    border:2px solid rgba(255,255,255,.25); transform:translate(-50%,-50%); animation:pulse 1.6s ease-out infinite; }
+  .hintDot{ position:absolute; left:50%; top:50%; width:56px; height:56px; border-radius:999px;
+    transform:translate(-50%,-50%); background:rgba(30,200,160,.4); border:2px solid rgba(255,255,255,.35); }
+  .hintArrow{ position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); font-size:22px; color:#cfe1ff; opacity:.9; animation:nudge 1.2s ease-in-out infinite; }
+  @keyframes pulse { 0%{transform:translate(-50%,-50%) scale(0.85); opacity:.6} 70%{opacity:.15} 100%{transform:translate(-50%,-50%) scale(1.2); opacity:0} }
+  @keyframes nudge { 0%{transform:translate(-50%,-50%) translateX(-12px)} 50%{transform:translate(-50%,-50%) translateX(12px)} 100%{transform:translate(-50%,-50%) translateX(-12px)} }
+
+  /* Ghost arrows */
+  #ghostArrows{ position:absolute; inset:0; pointer-events:none; z-index:20; display:none; }
+  .ga{ font-size:22px; color:#cfe1ff; text-shadow:0 0 10px rgba(255,255,255,.15); transition:opacity .6s; position:absolute; }
+  .ga.left{ left:8px; top:50%; transform:translateY(-50%); }
+  .ga.right{ right:8px; top:50%; transform:translateY(-50%); }
+  .ga.up{ left:50%; top:8px; transform:translateX(-50%); }
+  .ga.down{ left:50%; bottom:8px; transform:translateX(-50%); }
 
   /* Hero overlay */
   .hero{position:absolute; inset:0; display:grid; place-items:center; gap:16px;
@@ -72,42 +95,6 @@
   .switch input::after{ content:""; position:absolute; left:2px; top:2px; width:16px; height:16px; border-radius:50%; background:#e6f0ff; transition:left .2s }
   .switch input:checked::after{ left:18px }
   .range{ width:120px }
-
-  /* Control chip */
-  #controlChip{ position:absolute; right:12px; top:12px; z-index:22;
-    background:rgba(17,25,48,.6); border:1px solid rgba(255,255,255,.12);
-    padding:6px 10px; border-radius:12px; font-size:12px; backdrop-filter:blur(8px) }
-
-  /* Onboarding */
-  #onboard{ position:absolute; inset:0; display:none; place-items:end center; padding-bottom:14vh; z-index:21; }
-  .hintPulse{ position:absolute; left:50%; top:50%; width:110px; height:110px; border-radius:999px;
-    border:2px solid rgba(255,255,255,.25); transform:translate(-50%,-50%); animation:pulse 1.6s ease-out infinite; }
-  .hintDot{ position:absolute; left:50%; top:50%; width:56px; height:56px; border-radius:999px;
-    transform:translate(-50%,-50%); background:rgba(30,200,160,.4); border:2px solid rgba(255,255,255,.35); }
-  .hintArrow{ position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); font-size:22px; color:#cfe1ff; opacity:.9; animation:nudge 1.2s ease-in-out infinite; }
-  @keyframes pulse { 0%{transform:translate(-50%,-50%) scale(0.85); opacity:.6} 70%{opacity:.15} 100%{transform:translate(-50%,-50%) scale(1.2); opacity:0} }
-  @keyframes nudge { 0%{transform:translate(-50%,-50%) translateX(-12px)} 50%{transform:translate(-50%,-50%) translateX(12px)} 100%{transform:translate(-50%,-50%) translateX(-12px)} }
-
-  /* Ghost arrows */
-  #ghostArrows{ position:absolute; inset:0; pointer-events:none; z-index:20; display:none; }
-  .ga{ font-size:22px; color:#cfe1ff; text-shadow:0 0 10px rgba(255,255,255,.15); transition:opacity .6s; position:absolute; }
-  .ga.left{ left:8px; top:50%; transform:translateY(-50%); }
-  .ga.right{ right:8px; top:50%; transform:translateY(-50%); }
-  .ga.up{ left:50%; top:8px; transform:translateX(-50%); }
-  .ga.down{ left:50%; bottom:8px; transform:translateX(-50%); }
-
-  /* Joystick */
-  .joystick { position:fixed; pointer-events:none; z-index:25 }
-  .stickBase, .stickKnob{ position:absolute; border-radius:999px; transform:translate(-50%,-50%); display:none; }
-  .stickBase{ width:120px; height:120px; border:2px solid rgba(255,255,255,.25);
-    background:rgba(15,20,35,.35); backdrop-filter:blur(8px); }
-  .stickKnob{ width:64px; height:64px; border:2px solid rgba(255,255,255,.35);
-    background:rgba(30,200,160,.35); box-shadow:0 6px 24px rgba(0,0,0,.4); }
-
-  /* Portrait joystick region: bottom third */
-  .joystick.portrait{ left:0; right:0; bottom:0; height:34vh; }
-  /* Landscape joystick region: right third */
-  .joystick.landscape{ right:0; top:0; bottom:0; width:36vw; }
 
   footer{ width:min(1200px,100%); margin:10px auto 0; color:#cfe1ff; opacity:.9;
           display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap; font-size:14px }
@@ -138,7 +125,7 @@
 
 <div class="frame">
   <div class="stage">
-    <canvas id="cv" width="960" height="600" aria-label="Snake Boss Survival — v4.0.4"></canvas>
+    <canvas id="cv" width="960" height="600" aria-label="Snake Boss Survival — v4.0.6"></canvas>
 
     <!-- HUD -->
     <div class="hud">
@@ -149,7 +136,7 @@
     </div>
 
     <!-- Help chip -->
-    <div id="controlChip">👉 Dra med tummen för att styra</div>
+    <div id="controlChip">👉 Dra på spelplanen för att styra</div>
 
     <!-- Onboarding -->
     <div id="onboard">
@@ -157,7 +144,7 @@
         <div class="hintPulse"></div>
         <div class="hintDot"></div>
         <div class="hintArrow">↔︎</div>
-        <div style="position:absolute; left:50%; top:calc(50% + 70px); transform:translateX(-50%); font-size:12px; color:#dbeafe; opacity:.9;">Håll tummen & dra</div>
+        <div style="position:absolute; left:50%; top:calc(50% + 70px); transform:translateX(-50%); font-size:12px; color:#dbeafe; opacity:.9;">Håll & dra</div>
       </div>
     </div>
 
@@ -180,7 +167,7 @@
         <div style="text-align:center; color:#cfe1ff; margin-bottom:12px">Ät före bossen. Undvik krockar. Slå rekordet.</div>
         <div style="display:grid; place-items:center; gap:10px">
           <button id="start" class="cta">▶ Starta</button>
-          <div class="hint">iPhone/Android: håll tummen & dra • Desktop: piltangenter</div>
+          <div class="hint">Mobil: håll & dra på spelplanen • Desktop: piltangenter</div>
         </div>
       </div>
     </div>
@@ -203,12 +190,6 @@
   </div>
 </div>
 
-<!-- Thumb joystick overlay -->
-<div id="joy" class="joystick portrait">
-  <div id="stickBase" class="stickBase"></div>
-  <div id="stickKnob" class="stickKnob"></div>
-</div>
-
 <audio id="bgm" src="soundtrack.mp3" preload="auto" loop></audio>
 
 <footer>
@@ -225,11 +206,12 @@
 <script>
 (()=>{
 const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (Math.min(innerWidth, innerHeight) < 820);
+if(isMobile) document.body.classList.add('mobile');
 
 const cv = document.getElementById('cv'), ctx=cv.getContext('2d');
+// Internal logical grid
 let cols=30, rows=20; 
-let cell = Math.floor(Math.min(cv.width/cols, cv.height/rows));
-let padX = Math.floor((cv.width - cols*cell)/2), padY = Math.floor((cv.height - rows*cell)/2);
+let cell = 20, padX=0, padY=0;
 
 const ui = {
   score: byId('score'), best: byId('best'),
@@ -243,29 +225,26 @@ const ui = {
 };
 function byId(id){ return document.getElementById(id); }
 
-/* Responsive canvas sizing */
+/* DPR-aware resize: keep 16:10 CSS aspect, scale internal buffer to DPR for sharpness */
 function resizeCanvas(){
-  // Keep a 16:10 canvas ratio, then scale grid sizes accordingly
   const stage = cv.parentElement.getBoundingClientRect();
-  const targetW = stage.width - 24;
-  const targetH = Math.min(stage.height - 24, targetW * (10/16));
-  cv.style.width = Math.max(320, targetW) + 'px';
-  // keep internal buffer constant (960x600) but recompute cell metrics for input/draw
-  cell = Math.floor(Math.min(cv.width/cols, cv.height/rows));
-  const cssW = cv.getBoundingClientRect().width;
-  const cssH = cssW * (600/960);
+  const cssW = Math.max(320, stage.width - 24);
+  const cssH = cssW * (10/16);
+  const dpr = Math.min(2, window.devicePixelRatio || 1); // cap dpr for perf
+  cv.style.width = cssW + 'px';
   cv.style.height = cssH + 'px';
-  padX = Math.floor((cv.width - cols*cell)/2); 
-  padY = Math.floor((cv.height - rows*cell)/2);
-  // Switch joystick mode class
-  const joy = byId('joy');
-  if(innerWidth > innerHeight) { // landscape
-    joy.classList.remove('portrait'); joy.classList.add('landscape');
-  } else { joy.classList.remove('landscape'); joy.classList.add('portrait'); }
+  cv.width  = Math.floor(cssW * dpr);
+  cv.height = Math.floor(cssH * dpr);
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+
+  // recompute grid cell
+  cell = Math.floor(Math.min(cv.width/dpr/cols, cv.height/dpr/rows));
+  padX = Math.floor((cv.width/dpr - cols*cell)/2);
+  padY = Math.floor((cv.height/dpr - rows*cell)/2);
 }
 resizeCanvas();
 addEventListener('resize', resizeCanvas);
-addEventListener('orientationchange', ()=>{ setTimeout(resizeCanvas, 200); hintGhosts(); });
+addEventListener('orientationchange', ()=> setTimeout(resizeCanvas, 200));
 
 /* SFX */
 let sfxEnabled = true; let musicEnabled = true;
@@ -297,7 +276,7 @@ ui.musicVol.oninput = ()=>{ ui.bgm.volume = ui.musicVol.value/100; };
 
 /* Game state */
 let running=false, paused=false, loopId=null, tickMs=120;
-let snake, dir='right', nextDir='right', food, score=0, best=parseInt(localStorage.getItem('sbs_best_v404')||'0');
+let snake, dir='right', nextDir='right', food, score=0, best=parseInt(localStorage.getItem('sbs_best_v406')||'0');
 let boss, bossAlt=false;
 let shieldTicks=0;
 let lastGlow='default';
@@ -305,7 +284,7 @@ let bossEasyTicks=40; // ~5s lugnare boss i början
 
 /* Parallax */
 let layers=[];
-function spawnStars(n, color){ const arr=[]; for(let i=0;i<n;i++){ arr.push({x:Math.random()*cv.width, y:Math.random()*cv.height, c:color}); } return arr; }
+function spawnStars(n, color){ const arr=[]; for(let i=0;i<n;i++){ arr.push({x:Math.random()*(cv.width), y:Math.random()*(cv.height), c:color}); } return arr; }
 function drawParallax(){
   layers.forEach(L=>{
     L.stars.forEach(s=>{
@@ -363,7 +342,7 @@ function wrap(v,max){ return (v+max)%max; }
 function start(){
   if(running) return;
   running=true; paused=false; ui.hero.classList.add('hide');
-  initAC(); try{ if(musicEnabled){ ui.bgm.volume = ui.musicVol.value/100; ui.bgm.play(); } }catch(e){}
+  initAC(); try{ if(musicEnabled){ ui.bgm.volume = ui.musicVol.value/100; ui.bgm.play(); } }catch(e){};
   if(loopId) clearInterval(loopId);
   loopId = setInterval(()=>{ if(!paused) { tick(); draw(); } }, tickMs);
 }
@@ -402,41 +381,21 @@ function learned(){
   ui.chip.style.opacity=.35;
 }
 
-/* Thumb joystick */
-const joy = byId('joy'); const stickBase = byId('stickBase'); const stickKnob = byId('stickKnob');
-let stickActive=false, stickStartX=0, stickStartY=0;
-const DEADZONE= isMobile ? 22 : 14, SNAP_DELAY_MS=90; let lastSnap=0;
-function portrait(){ return innerHeight >= innerWidth; }
-function inRegion(x,y){
-  return portrait() ? (y > innerHeight*0.66) : (x > innerWidth*0.64);
-}
-function setDirIfAllowed(d){ const map={up:[0,-1],down:[0,1],left:[-1,0],right:[1,0]}; const [dx,dy]=map[d], [cx,cy]=map[dir]; if(dx===-cx&&dy===-cy) return; nextDir=d; learned(); }
-function handleStickMove(x,y){
-  const dx=x-stickStartX, dy=y-stickStartY, dist=Math.hypot(dx,dy);
-  const maxR=44, r=Math.min(maxR,dist), ang=Math.atan2(dy,dx);
-  stickKnob.style.left=(stickStartX+Math.cos(ang)*r)+'px';
-  stickKnob.style.top =(stickStartY+Math.sin(ang)*r)+'px';
-  if(dist<DEADZONE) return;
-  const now=performance.now(); if(now-lastSnap<SNAP_DELAY_MS) return;
-  if(Math.abs(dx)>Math.abs(dy)) setDirIfAllowed(dx>0?'right':'left'); else setDirIfAllowed(dy>0?'down':'up');
-  lastSnap=now;
-}
-function stickStart(e){
-  const t=e.touches?e.touches[0]:e; if(!inRegion(t.clientX,t.clientY)) return;
-  stickActive=true; stickStartX=t.clientX; stickStartY=t.clientY;
-  stickBase.style.left=stickKnob.style.left=stickStartX+'px';
-  stickBase.style.top =stickKnob.style.top =stickStartY+'px';
-  stickBase.style.display=stickKnob.style.display='block';
-  e.preventDefault(); start();
-}
-function stickMove(e){ if(!stickActive) return; const t=e.touches?e.touches[0]:e; handleStickMove(t.clientX,t.clientY); e.preventDefault(); }
-function stickEnd(){ if(!stickActive) return; stickActive=false; stickBase.style.display=stickKnob.style.display='none'; }
-joy.addEventListener('touchstart', stickStart, {passive:false});
-joy.addEventListener('touchmove',  stickMove,  {passive:false});
-joy.addEventListener('touchend',   stickEnd,   {passive:true});
-joy.addEventListener('mousedown',  stickStart);
-window.addEventListener('mousemove', stickMove);
-window.addEventListener('mouseup',   stickEnd);
+/* Canvas drag-to-steer (portrait + landscape) */
+let swStartX=0, swStartY=0, swActive=false;
+const SW_DEAD = isMobile ? 22 : 14, SW_SNAP_MS=90; let swLast=0;
+cv.addEventListener('touchstart', (e)=>{ 
+  const t=e.touches[0]; swStartX=t.clientX; swStartY=t.clientY; swActive=true; e.preventDefault(); start(); 
+}, {passive:false});
+cv.addEventListener('touchmove', (e)=>{
+  if(!swActive) return;
+  const t=e.touches[0]; const dx=t.clientX-swStartX, dy=t.clientY-swStartY;
+  if(Math.hypot(dx,dy) < SW_DEAD) return;
+  const now=performance.now(); if(now - swLast < SW_SNAP_MS) return;
+  if(Math.abs(dx)>Math.abs(dy)) setDir(dx>0?'right':'left'); else setDir(dy>0?'down':'up');
+  swLast=now; e.preventDefault();
+}, {passive:false});
+cv.addEventListener('touchend', ()=>{ swActive=false; }, {passive:true});
 
 /* Tick */
 function tick(){
@@ -455,7 +414,7 @@ function tick(){
   // eat
   if(head.x===food.x && head.y===food.y){
     score++; ui.score.textContent=score; if(AC) sfxEat();
-    if(score>best){ best=score; localStorage.setItem('sbs_best_v404', best); ui.best.textContent=best; showRecordPop(); if(AC) sfxRecord(); }
+    if(score>best){ best=score; localStorage.setItem('sbs_best_v406', best); ui.best.textContent=best; showRecordPop(); if(AC) sfxRecord(); }
     if(score>=15) lastGlow='gold'; else if(score>=10) lastGlow='purple'; else if(score>=5) lastGlow='blue';
     food = safeFood();
   } else {
@@ -478,18 +437,26 @@ function bossStep(){
 
 /* Draw */
 function draw(){
-  ctx.setTransform(1,0,0,1,0,0); ctx.clearRect(0,0,cv.width,cv.height);
+  ctx.setTransform(ctx.getTransform()); // keep DPR scaling
+  ctx.clearRect(0,0,cv.width,cv.height);
   drawParallax();
-  ctx.save(); ctx.translate(padX,padY);
+  ctx.save();
+  ctx.translate(padX, padY);
   // grid
-  for(let y=0;y<rows;y++){ for(let x=0;x<cols;x++){ ctx.globalAlpha=((x+y)%2===0)?0.06:0.04; ctx.fillStyle='#7aa2f7'; ctx.fillRect(x*cell,y*cell,cell,cell); } } ctx.globalAlpha=1;
+  for(let y=0;y<rows;y++){
+    for(let x=0;x<cols;x++){
+      ctx.globalAlpha=((x+y)%2===0)?0.06:0.04; ctx.fillStyle='#7aa2f7';
+      ctx.fillRect(x*cell,y*cell,cell,cell);
+    }
+  }
+  ctx.globalAlpha=1;
   // food
   const t=Date.now()*0.004, bob=Math.sin(t*2)*2, fx=food.x*cell+4, fy=food.y*cell+4+bob, pulse=(Math.sin(t*3)*0.5+0.5)*0.3+0.7;
   ctx.fillStyle=getCSS('--food'); ctx.globalAlpha=pulse; ctx.fillRect(fx,fy,cell-8,cell-8); ctx.globalAlpha=1;
-  // snake with milestone glow
+  // snake
   let glow='#2cff96'; if(lastGlow==='blue') glow='rgba(125,211,252,0.8)'; if(lastGlow==='purple') glow='rgba(192,132,252,0.85)'; if(lastGlow==='gold') glow='rgba(255,209,102,0.9)';
   for(let i=snake.length-1;i>=0;i--){ const s=snake[i], isHead=i===0; if(isHead){ ctx.fillStyle=glow; ctx.globalAlpha=0.25; ctx.fillRect(s.x*cell,s.y*cell,cell,cell); ctx.globalAlpha=1; ctx.fillStyle=getCSS('--head'); } else { ctx.fillStyle=getCSS('--snake'); } roundRect(s.x*cell+1,s.y*cell+1,cell-2,cell-2,6); ctx.fill(); }
-  // boss + near highlight
+  // boss
   const near = dist(snake[0], boss[0]) <= 4;
   for(let i=boss.length-1;i>=0;i--){ const b=boss[i], isHead=i===0; if(isHead && near){ ctx.fillStyle='rgba(255,80,80,0.25)'; ctx.fillRect(b.x*cell,b.y*cell,cell,cell); } ctx.fillStyle=(isHead?getCSS('--bossHead'):getCSS('--boss')); roundRect(b.x*cell+2,b.y*cell+2,cell-4,cell-4,6); ctx.fill(); }
   ctx.restore();
