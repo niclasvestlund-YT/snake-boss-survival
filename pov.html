@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Snake Boss — POV Mode</title>
+<link rel="manifest" href="manifest.json" />
+<meta name="theme-color" content="#0a0f17" />
+<style>
+  :root{
+    --bg:#0a0f17; --hud:#c8d4e7; --chip:#1e2a3b;
+    --snake:#46f06e; --boss:#ff6f6f; --wall:#1b2233; --food:#ffd24a;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%; margin:0; background:#000; color:#e8eef7; font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial}
+  .wrap{position:relative; width:100%; height:100svh; display:grid; grid-template-rows:auto 1fr auto}
+  header, footer{display:flex; align-items:center; justify-content:space-between; padding:10px 12px; background:rgba(10,15,23,.85); backdrop-filter:saturate(1.2) blur(10px)}
+  .chip{background:var(--chip); color:#bfe1ff; border:1px solid rgba(255,255,255,.08); padding:8px 12px; border-radius:12px; font-weight:700}
+  .stage{position:relative; margin:10px; border-radius:20px; overflow:hidden; box-shadow:0 10px 40px rgba(0,0,0,.45); border:1px solid rgba(255,255,255,.08); background:#000}
+  canvas{position:absolute; inset:0; display:block; touch-action:none}
+  .hud{position:absolute; left:12px; top:56px; display:flex; gap:8px; pointer-events:none}
+  .box{background:rgba(0,0,0,.35); border:1px solid rgba(255,255,255,.06); padding:7px 10px; border-radius:11px; color:var(--hud); font-weight:900; letter-spacing:.08em}
+  .minimap{position:absolute; right:12px; top:56px; width:140px; height:140px; background:rgba(0,0,0,.3); border:1px solid rgba(255,255,255,.08); border-radius:10px}
+  .overlay{position:absolute; inset:0; display:grid; place-items:center; text-align:center; background:linear-gradient(180deg, rgba(8,12,18,.7), rgba(8,12,18,.55)); opacity:0; pointer-events:none; transition:opacity .2s}
+  .overlay.show{opacity:1; pointer-events:auto}
+  .card{padding:18px; border-radius:14px; background:rgba(20,26,36,.76); border:1px solid rgba(255,255,255,.08)}
+  .title{font-size:26px; font-weight:900; margin:0 0 8px}
+  .subtitle{margin:0 0 12px; color:#9fb0c8; font-size:14px}
+  .btn{padding:10px 14px; border-radius:999px; border:1px solid rgba(255,255,255,.12); background:#14324f; color:#d9eaff; font-weight:800}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <strong>Snake Boss — POV (prototype)</strong>
+    <div style="display:flex;gap:8px">
+      <a class="chip" href="index.html">2D Desktop</a>
+      <button class="chip" id="themeBtn">Theme</button>
+    </div>
+  </header>
+
+  <div class="stage">
+    <canvas id="view"></canvas>
+    <canvas id="map" class="minimap"></canvas>
+
+    <div class="hud">
+      <div class="box">SCORE <span id="score">0</span></div>
+      <div class="box">BEST <span id="best">0</span></div>
+      <div class="box" id="badge" hidden>BOOST</div>
+    </div>
+
+    <div class="overlay show" id="overlay">
+      <div class="card">
+        <h1 class="title" id="ovTitle">POV Mode</h1>
+        <p class="subtitle" id="ovMsg">A/D or ←/→ to steer. Space to start. Hold Shift to boost.</p>
+        <button class="btn" id="playBtn">Start</button>
+        <p style="opacity:.75; font-size:12px; margin-top:10px">
+          Prototype: raycast tunnel + minimap. Boss is red, your tail is green, walls are dark. Food glows.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <small>© Snake Boss v7.0 — POV</small>
+    <a href="https://youtube.com/@niclasvestlund" target="_blank" rel="noopener" style="color:#bfe1ff;text-decoration:none">YouTube</a>
+  </footer>
+</div>
+
+<script>
+// Canvas setup
+const view = document.getElementById('view');
+const vtx = view.getContext('2d', { alpha:false });
+const map = document.getElementById('map');
+const mtx = map.getContext('2d');
+function fit(){
+  const dpr = Math.min(2, devicePixelRatio||1);
+  const w = view.clientWidth = view.parentElement.clientWidth;
+  const h = view.clientHeight = view.parentElement.clientHeight;
+  view.width = w*dpr; view.height = h*dpr; vtx.setTransform(dpr,0,0,dpr,0,0);
+  map.width = 140; map.height = 140;
+}
+addEventListener('resize', fit, {passive:true}); fit();
+
+// World
+const GRID_W = 48, GRID_H = 32; // bounded arena (no wrap in POV for clarity)
+const cellSize = 1; // logical grid unit
+let food = {x:10,y:10};
+let score = 0, best = Number(localStorage.getItem('best')||0);
+document.getElementById('best').textContent = best;
+function rndFood(){
+  while(true){
+    const x = Math.floor(Math.random()*GRID_W);
+    const y = Math.floor(Math.random()*GRID_H);
+    if (!isOccupied(x,y)) { food = {x,y}; return; }
+  }
+}
+
+// Snake (player)
+let snake = [{x:6,y:Math.floor(GRID_H/2)}];
+let dir = 0; // angle radians (0 = right)
+let turn = 0; // -1..+1
+let speed = 6; // cells per second (grid logic)
+let boost = false;
+let grow = 6;
+
+// Boss (simple pathing to food)
+let boss = [{x:GRID_W-8,y:Math.floor(GRID_H/2)}];
+let bossDir = Math.PI; // facing left
+
+function reset(){
+  snake = [{x:6,y:Math.floor(GRID_H/2)}];
+  dir = 0; turn = 0; speed = 6; boost=false; grow=6;
+  boss = [{x:GRID_W-8,y:Math.floor(GRID_H/2)}];
+  bossDir = Math.PI;
+  score = 0; setScore(score);
+  rndFood();
+}
+reset();
+
+function isWall(x,y){ return (x<0||y<0||x>=GRID_W||y>=GRID_H); }
+function isOccupied(x,y){
+  return snake.some((s,i)=>i>0&&s.x===x&&s.y===y) || boss.some((b)=>b.x===x&&b.y===y);
+}
+
+// Input
+addEventListener('keydown', e=>{
+  if (['ArrowLeft','ArrowRight','KeyA','KeyD','Space','ShiftLeft','ShiftRight'].includes(e.code)) e.preventDefault();
+  if (state!=='play' && (e.code==='Space' || e.code==='Enter')) start();
+  if (e.code==='ArrowLeft'||e.code==='KeyA') turn = -1;
+  if (e.code==='ArrowRight'||e.code==='KeyD') turn = +1;
+  if (e.code==='ShiftLeft'||e.code==='ShiftRight') boost=true;
+}, {passive:false});
+addEventListener('keyup', e=>{
+  if (e.code==='ArrowLeft'||e.code==='KeyA' || e.code==='ArrowRight'||e.code==='KeyD') turn = 0;
+  if (e.code==='ShiftLeft'||e.code==='ShiftRight') boost=false;
+}, {passive:true});
+
+// Touch steer (left/right half screen)
+view.addEventListener('touchstart', e=>{ if(e.touches.length){ const x=e.touches[0].clientX; turn = x < innerWidth/2 ? -1 : +1; } }, {passive:true});
+view.addEventListener('touchend', ()=>{ turn=0; }, {passive:true});
+
+// Game loop
+let state='intro', last=0, acc=0; const TICK=1000/20; // 20Hz logic
+function start(){ state='play'; document.getElementById('overlay').classList.remove('show'); }
+function over(txt='Game Over'){
+  state='dead'; best=Math.max(best,score); localStorage.setItem('best',best); document.getElementById('best').textContent=best;
+  const ov=document.getElementById('overlay'); ov.classList.add('show');
+  document.getElementById('ovTitle').textContent=txt;
+  document.getElementById('ovMsg').textContent='Space to restart';
+}
+document.getElementById('playBtn').onclick = start;
+
+function setScore(v){ document.getElementById('score').textContent=v; }
+
+function step(){
+  // steering
+  const turnRate = 0.18; // rad per tick
+  dir += turn * turnRate;
+  const spd = boost ? speed*1.4 : speed;
+  // move player: convert angle to grid step probability
+  // accumulate partial movement
+  moveEntity(snake, dir, spd);
+  // eat
+  const head=snake[0];
+  if (head.x===food.x && head.y===food.y){
+    score+=1; setScore(score); grow+=2; rndFood();
+  }
+  // collide
+  if (isWall(head.x,head.y)) return over('Crashed the wall!');
+  if (snake.some((s,i)=>i>0 && s.x===head.x && s.y===head.y)) return over('You bit yourself!');
+  if (boss.some(b=>b.x===head.x && b.y===head.y)) return over('Head-on!');
+
+  // trim
+  if (grow>0) grow--; else snake.pop();
+
+  // boss step (greedy towards food)
+  const bh={...boss[0]};
+  const dx = Math.sign(food.x - bh.x);
+  const dy = Math.sign(food.y - bh.y);
+  if (Math.random()<0.6) bh.x += dx; else bh.y += dy;
+  if (!isWall(bh.x,bh.y)) boss.unshift(bh);
+  if (bh.x===food.x && bh.y===food.y){ rndFood(); if (boss.length<80) boss.push({...boss[boss.length-1]}); }
+  else boss.pop();
+}
+
+let pmx=0,pmy=0;
+function moveEntity(body, angle, cellsPerSec){
+  // accumulate continuous movement mapped to grid steps
+  pmx += Math.cos(angle);
+  pmy += Math.sin(angle);
+  const nx = body[0].x + Math.sign(pmx);
+  const ny = body[0].y + Math.sign(pmy);
+  if (Math.abs(pmx)>=1){ body.unshift({x:nx,y:body[0].y}); pmx-=Math.sign(pmx); }
+  if (Math.abs(pmy)>=1){ body.unshift({x:body[0].x,y:ny}); pmy-=Math.sign(pmy); }
+}
+
+// Raycast render
+const FOV = Math.PI*0.8; // 144deg
+function sample(x,y){
+  if (x===food.x && y===food.y) return 3;
+  if (snake.some(s=>s.x===x && s.y===y)) return 1;
+  if (boss.some(b=>b.x===x && b.y===y)) return 2;
+  if (isWall(x,y)) return 9;
+  return 0;
+}
+
+function cast(px,py, ang, maxDist=64){
+  // DDA in grid
+  let x=px+0.5, y=py+0.5;
+  const sin=Math.sin(ang), cos=Math.cos(ang);
+  let dist=0;
+  while(dist<maxDist){
+    x+=cos*0.05; y+=sin*0.05; dist+=0.05;
+    const gx = Math.floor(x), gy=Math.floor(y);
+    const t=sample(gx,gy);
+    if (t!==0) return {dist, type:t};
+  }
+  return {dist:maxDist, type:0};
+}
+
+function draw3D(){
+  const w=view.clientWidth, h=view.clientHeight;
+  vtx.fillStyle='#000'; vtx.fillRect(0,0,w,h);
+  // sky & floor
+  vtx.fillStyle='#0b0f16'; vtx.fillRect(0,0,w,h/2);
+  vtx.fillStyle='#04070c'; vtx.fillRect(0,h/2,w,h/2);
+  const head=snake[0]; const dir0=dir;
+  const cols = Math.min(240, Math.floor(w/3));
+  for(let i=0;i<cols;i++){
+    const a = dir0 + (i/cols-0.5)*FOV;
+    const {dist,type} = cast(head.x, head.y, a);
+    const dd = Math.max(0.0001, dist);
+    const height = Math.min(h*0.95, (h*0.8)/(dd));
+    let col = '#223';
+    if (type===1) col = '#2bd26a';
+    else if (type===2) col = '#ff6f6f';
+    else if (type===3) col = '#ffd24a';
+    else if (type===9) col = '#1b2233';
+    const shade = Math.max(0.15, 1.0 - dd/18);
+    vtx.fillStyle = applyShade(col, shade);
+    const x = Math.floor(i*w/cols);
+    vtx.fillRect(x, (h-height)/2, Math.ceil(w/cols)+1, height);
+    // fog overlay
+    const fog = Math.min(0.65, dd/24);
+    vtx.fillStyle = `rgba(0,0,0,${fog})`;
+    vtx.fillRect(x, (h-height)/2, Math.ceil(w/cols)+1, height);
+  }
+  // reticle
+  vtx.fillStyle='rgba(255,255,255,.25)'; vtx.fillRect(w/2-1,h/2-8,2,16); vtx.fillRect(w/2-8,h/2-1,16,2);
+}
+
+function applyShade(hex, s){
+  // hex like #rrggbb
+  const r=parseInt(hex.slice(1,3),16), g=parseInt(hex.slice(3,5),16), b=parseInt(hex.slice(5,7),16);
+  const rr=Math.floor(r*s), gg=Math.floor(g*s), bb=Math.floor(b*s);
+  return `rgb(${rr},${gg},${bb})`;
+}
+
+function drawMap(){
+  mtx.clearRect(0,0,map.width,map.height);
+  const scaleX = map.width/GRID_W, scaleY=map.height/GRID_H;
+  // walls
+  mtx.strokeStyle='rgba(255,255,255,.15)';
+  mtx.strokeRect(0,0,GRID_W*scaleX,GRID_H*scaleY);
+  // snake
+  mtx.fillStyle='#2bd26a';
+  snake.forEach(p=>mtx.fillRect(p.x*scaleX,p.y*scaleY,scaleX,scaleY));
+  // boss
+  mtx.fillStyle='#ff6f6f';
+  boss.forEach(p=>mtx.fillRect(p.x*scaleX,p.y*scaleY,scaleX,scaleY));
+  // food
+  mtx.fillStyle='#ffd24a';
+  mtx.fillRect(food.x*scaleX,food.y*scaleY,scaleX,scaleY);
+  // heading ray
+  const head=snake[0];
+  mtx.strokeStyle='rgba(255,255,255,.6)';
+  mtx.beginPath();
+  mtx.moveTo((head.x+0.5)*scaleX,(head.y+0.5)*scaleY);
+  mtx.lineTo((head.x+0.5+Math.cos(dir)*4)*scaleX,(head.y+0.5+Math.sin(dir)*4)*scaleY);
+  mtx.stroke();
+}
+
+function frame(ts){
+  if(!last) last=ts;
+  const dt = ts-last; last=ts; acc+=dt;
+  while(acc>=TICK){ if(state==='play') step(); acc-=TICK; }
+  draw3D();
+  drawMap();
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', ()=>navigator.serviceWorker.register('service-worker.js'));
+}
+</script>
+</body>
+</html>

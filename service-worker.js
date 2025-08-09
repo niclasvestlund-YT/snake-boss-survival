@@ -1,6 +1,6 @@
-const CACHE_VERSION = 'sb-v6-8';
+const CACHE_VERSION = 'sb-v7-0-pov';
 const ASSETS = [
-  '/', '/index.html', '/mobile.html',
+  '/', '/index.html', '/mobile.html', '/pov.html',
   '/manifest.json', '/snake_boss_logo.png', '/icon-192.png', '/icon-512.png',
   '/soundtrack.mp3'
 ];
@@ -22,6 +22,6 @@ self.addEventListener('fetch', e=>{
         const copy = res.clone();
         caches.open(CACHE_VERSION).then(c=>c.put(req, copy));
         return res;
-      }).catch(()=>caches.match('/mobile.html')))
+      }).catch(()=>caches.match('/pov.html')))
   );
 });
