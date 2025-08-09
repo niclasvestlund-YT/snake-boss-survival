@@ -342,12 +342,20 @@ function wrap(v,max){ return (v+max)%max; }
 function start(){
   if(running) return;
   running=true; paused=false; ui.hero.classList.add('hide');
-  initAC(); try{ if(musicEnabled){ ui.bgm.volume = ui.musicVol.value/100; ui.bgm.play(); } }catch(e){};
+  primeAudio(); try{ if(musicEnabled){ ui.bgm.volume = ui.musicVol.value/100; ui.bgm.play().catch(()=>{}); } }catch(e){};
   if(loopId) clearInterval(loopId);
   loopId = setInterval(()=>{ if(!paused) { tick(); draw(); } }, tickMs);
 }
 ui.start.onclick = start;
+ui.hero.addEventListener('click', (e)=>{ if(!running){ e.preventDefault(); start(); } });
+
+// mobile start fallbacks
+ui.start.addEventListener('touchstart', (e)=>{ e.preventDefault(); start(); }, {passive:false});
+ui.hero.addEventListener('touchstart', (e)=>{ if(!running){ e.preventDefault(); start(); } }, {passive:false});
+
 cv.addEventListener('click', ()=>start());
+cv.addEventListener('mousedown', ()=>start());
+cv.addEventListener('touchstart', (e)=>{ start(); }, {passive:true});
 window.addEventListener('keydown', e=>{
   const k=e.key.toLowerCase();
   if(k==='arrowup'||k==='w') setDir('up');
