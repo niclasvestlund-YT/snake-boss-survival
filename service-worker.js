@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'sb-v6-3';
+const CACHE_VERSION = 'sb-v6-5';
 const ASSETS = [
   '/', '/index.html', '/mobile.html',
   '/manifest.json', '/snake_boss_logo.png', '/icon-192.png', '/icon-512.png',

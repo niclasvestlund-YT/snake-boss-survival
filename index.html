@@ -11,7 +11,8 @@
     --bg0:#0a0f17; --bg1:#0e1320; --g1:#00FFE0; --g2:#00A2FF; --g3:#7B61FF;
     --grid-a:rgba(255,255,255,.06); --grid-b:rgba(0,0,0,0); --vign:rgba(0,0,0,.45);
     --hud:#c8d4e7; --hud-dim:#6f7a8b; --chip:#1e2a3b;
-    --snake:#3eea62; --boss:#ff6f6f; --food:#ffd24a;
+    --snake:#3eea62; --boss:#ff6f6f;
+    --food:#ffd24a; --food-chili:#ff4d4d; --food-ice:#4dd5ff; --food-star:#ffe76a;
   }
   *{box-sizing:border-box}
   html,body{height:100%; margin:0; overflow:hidden; background:#000; color:#e8eef7; font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial; -webkit-font-smoothing:antialiased}
@@ -23,6 +24,8 @@
   .chip:focus{outline:2px solid #3aa3ff}
   .hud{position:absolute; inset:64px 16px auto 16px; display:flex; justify-content:space-between; pointer-events:none}
   .hud .box{background:rgba(0,0,0,.35); border:1px solid rgba(255,255,255,.06); padding:8px 12px; border-radius:12px; color:var(--hud); font-weight:800; letter-spacing:.08em}
+  .effect{position:absolute; top:64px; left:50%; transform:translateX(-50%); pointer-events:none}
+  .effect .box{background:rgba(0,0,0,.35); border:1px solid rgba(255,255,255,.08); padding:6px 10px; border-radius:999px; font-weight:800; color:#bfe1ff}
   .bg, canvas{position:absolute; inset:0; display:block}
   canvas{touch-action:none}
   .stage{position:relative; margin:12px; border-radius:24px; overflow:hidden; box-shadow:0 10px 40px rgba(0,0,0,.45); border:1px solid rgba(255,255,255,.08); background:rgba(8,12,18,.9)}
@@ -84,6 +87,7 @@ if ((isTouch || isSmall) && !location.pathname.endsWith('mobile.html')) {
       <div class="box">SCORE <span id="score">0</span></div>
       <div class="box">BEST <span id="best">0</span></div>
     </div>
+    <div class="effect"><div class="box" id="effectBox" hidden>EFFECT: <span id="effectTxt"></span></div></div>
 
     <div class="overlay show" id="overlay">
       <div class="card">
@@ -94,12 +98,13 @@ if ((isTouch || isSmall) && !location.pathname.endsWith('mobile.html')) {
           <button class="chip" id="muteBtn" aria-pressed="false">Mute</button>
           <button class="chip" id="shareBtn" hidden>Share</button>
         </div>
+        <p style="opacity:.75; font-size:12px; margin-top:10px">Foods: <b>Apple</b> (+1), <b>Chili</b> (Speed), <b>Ice</b> (Slow Boss), <b>Star</b> (x2 score)</p>
       </div>
     </div>
   </div>
 
   <footer>
-    <small>© Snake Boss v6.0</small>
+    <small>© Snake Boss v6.5</small>
     <a href="https://youtube.com/@niclasvestlund" target="_blank" rel="noopener">YouTube</a>
   </footer>
 </div>
@@ -142,16 +147,31 @@ fitCanvas();
 
 // ---------- Game state ----------
 let state='intro', rafId=0, acc=0, last=0;
-const STEP=1000/12, MAX_ACC=STEP*5;
+const baseSTEP=1000/12; let stepMul=1;
+function curSTEP(){ return baseSTEP*stepMul; }
 let cols=0, rows=0, cell=24;
 let snake=[], sDir='RIGHT', grow=0;
-let boss=[], bDir='LEFT';
-let food={x:10,y:10};
+let boss=[], bDir='LEFT', bossTick=0, bossSlow=false;
+let food={x:10,y:10,type:'apple'};
 let score=0, best=Number(localStorage.getItem('best')||0);
 document.getElementById('best').textContent = best;
 
+// effects
+let effect={type:null, t:0};
+const effectBox=document.getElementById('effectBox'); const effectTxt=document.getElementById('effectTxt');
+function setEffect(t,ms){
+  effect.type=t; effect.t=ms;
+  if (t===null){ effectBox.hidden=true; stepMul=1; bossSlow=false; }
+  else{
+    effectBox.hidden=false; effectTxt.textContent = (t==='chili'?'SPEED': t==='ice'?'SLOW BOSS': t==='star'?'DOUBLE SCORE':''); 
+    if (t==='chili') stepMul=0.7;
+    if (t==='ice') bossSlow=true;
+    if (t==='star') stepMul=1;
+  }
+}
+
+// grid sizing
 function layoutGrid(){
-  // pick cell size ~24px that fully fits screen
   const w = canvas.clientWidth, h = canvas.clientHeight;
   cell = Math.max(16, Math.floor(Math.min(w,h)/28));
   cols = Math.floor(w/cell); rows = Math.floor(h/cell);
@@ -161,17 +181,25 @@ layoutGrid();
 function makeSnake(){ const y=Math.floor(rows/2); return [{x:3,y},{x:2,y},{x:1,y}]; }
 function makeBoss(){ const y=Math.floor(rows/2); const x=cols-4; return [{x,y},{x:x+1,y},{x:x+2,y}]; }
 
+function rndFoodType(){
+  const r=Math.random();
+  if (r<0.70) return 'apple';
+  if (r<0.82) return 'chili';
+  if (r<0.94) return 'ice';
+  return 'star';
+}
 function placeFood(){
   while(true){
     const x = (Math.random()*cols|0), y=(Math.random()*rows|0);
-    if (![...snake,...boss].some(s=>s.x===x && s.y===y)){ food={x,y}; return; }
+    if (![...snake,...boss].some(s=>s.x===x && s.y===y)){ food={x,y,type:rndFoodType()}; return; }
   }
 }
 
 function resetGame(){
   layoutGrid();
   snake = makeSnake(); sDir='RIGHT'; grow=0;
-  boss = makeBoss(); bDir='LEFT';
+  boss = makeBoss(); bDir='LEFT'; bossTick=0; bossSlow=false;
+  setEffect(null,0);
   placeFood();
   score=0; setScore(score);
   shakeT=0; bossFlashT=0;
@@ -197,7 +225,7 @@ function hideOverlay(){ overlay.classList.remove('show'); overlay.style.pointerE
 
 playBtn.onclick = startGame;
 
-// ---------- Input (desktop) ----------
+// ---------- Input ----------
 addEventListener('keydown', (e)=>{
   if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' ','Space','KeyW','KeyA','KeyS','KeyD'].includes(e.code)) e.preventDefault();
   if (state!=='playing' && (e.code==='Space' || e.code==='Enter')) startGame();
@@ -243,27 +271,32 @@ function step(){
   if (snake.some((s,i)=>i>0 && s.x===head.x && s.y===head.y)) return gameOver('You bit yourself!');
   snake.unshift(head);
   if (head.x===food.x && head.y===food.y){
-    grow+=2; score++; setScore(score); pulse(); playGulp(); placeFood();
+    // apply food
+    if (food.type==='star'){ score+=2; setEffect('star', 6000); }
+    else { score+=1; if (food.type==='chili') setEffect('chili', 4000); if (food.type==='ice') setEffect('ice', 4000); }
+    setScore(score); pulse(); playGulp(); placeFood(); grow+=2;
   }
   if (grow>0) { grow--; } else { snake.pop(); }
 
-  // boss ai: greedy-ish
-  const bhead={...boss[0]};
-  const dx = Math.sign(food.x - bhead.x);
-  const dy = Math.sign(food.y - bhead.y);
-  if (Math.random()<0.6){
-    bhead.x += dx!==0 ? dx : 0;
-  } else {
-    bhead.y += dy!==0 ? dy : 0;
-  }
-  bhead.x=(bhead.x+cols)%cols; bhead.y=(bhead.y+rows)%rows;
-  // head-only collision
-  if (bhead.x===head.x && bhead.y===head.y) return gameOver('Head-on collision!');
-  boss.unshift(bhead);
-  if (bhead.x===food.x && bhead.y===food.y){
-    bossFlashT=180; triggerShake(); pulse(); playGulp(); placeFood();
-  } else {
-    boss.pop();
+  // boss
+  bossTick ^= 1;
+  if (!(bossSlow && bossTick===1)){
+    const bhead={...boss[0]};
+    const dx = Math.sign(food.x - bhead.x);
+    const dy = Math.sign(food.y - bhead.y);
+    if (Math.random()<0.6){
+      bhead.x += dx!==0 ? dx : 0;
+    } else {
+      bhead.y += dy!==0 ? dy : 0;
+    }
+    bhead.x=(bhead.x+cols)%cols; bhead.y=(bhead.y+rows)%rows;
+    if (bhead.x===head.x && bhead.y===head.y) return gameOver('Head-on collision!');
+    boss.unshift(bhead);
+    if (bhead.x===food.x && bhead.y===food.y){
+      bossFlashT=180; triggerShake(); pulse(); playGulp(); placeFood();
+    } else {
+      boss.pop();
+    }
   }
 }
 
@@ -272,7 +305,7 @@ function render(){
   if (shakeT>0){ const m=Math.min(8,2+shakeT/20); ctx.translate((Math.random()*2-1)*m,(Math.random()*2-1)*m); shakeT-=16; }
 
   ctx.clearRect(0,0,canvas.clientWidth,canvas.clientHeight);
-  drawCell(food.x,food.y, '--food');
+  drawFood(food);
   ctx.save(); if (bossFlashT>0){ ctx.globalAlpha=0.7; bossFlashT-=16; }
   boss.forEach((p,i)=>drawCell(p.x,p.y, '--boss', i===0?1:0.85));
   ctx.restore();
@@ -280,6 +313,13 @@ function render(){
   ctx.restore();
 }
 
+function foodColorVar(t){
+  if (t==='chili') return '--food-chili';
+  if (t==='ice') return '--food-ice';
+  if (t==='star') return '--food-star';
+  return '--food';
+}
+function drawFood(f){ drawCell(f.x,f.y, foodColorVar(f.type)); }
 function drawCell(cx,cy,varName,alpha=1){
   const x=cx*cell, y=cy*cell;
   ctx.globalAlpha=alpha;
@@ -291,8 +331,12 @@ function drawCell(cx,cy,varName,alpha=1){
 function frame(ts){
   if (!last) last=ts;
   let dt=ts-last; last=ts;
-  acc+=dt; if (acc>MAX_ACC) acc=MAX_ACC;
-  while (acc>=STEP){ if(state==='playing') step(); acc-=STEP; }
+  // effect timer
+  if (effect.t>0){ effect.t -= dt; if (effect.t<=0) setEffect(null,0); }
+  acc+=dt;
+  let stepMs = curSTEP();
+  if (acc>stepMs*5) acc=stepMs*5;
+  while (acc>=stepMs){ if(state==='playing') step(); acc-=stepMs; stepMs = curSTEP(); }
   render();
   rafId=requestAnimationFrame(frame);
 }
@@ -304,6 +348,7 @@ function startGame(){
 
 function gameOver(reason){
   state='dead';
+  setEffect(null,0);
   best = Math.max(best, score); localStorage.setItem('best', best); document.getElementById('best').textContent=best;
   showOverlay('Beat me to it!', 'Boss is getting stronger!');
   if (navigator.share){

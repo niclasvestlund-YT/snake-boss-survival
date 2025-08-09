@@ -11,7 +11,8 @@
     --bg0:#0a0f17; --bg1:#0e1320; --g1:#00FFE0; --g2:#00A2FF; --g3:#7B61FF;
     --grid-a:rgba(255,255,255,.06); --grid-b:rgba(0,0,0,0); --vign:rgba(0,0,0,.45);
     --hud:#c8d4e7; --chip:#1e2a3b;
-    --snake:#3eea62; --boss:#ff6f6f; --food:#ffd24a;
+    --snake:#3eea62; --boss:#ff6f6f;
+    --food:#ffd24a; --food-chili:#ff4d4d; --food-ice:#4dd5ff; --food-star:#ffe76a;
   }
   *{box-sizing:border-box}
   html,body{height:100%; margin:0; overflow:hidden; background:#000; color:#e8eef7; font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial}
@@ -24,6 +25,8 @@
   canvas{touch-action:none}
   .hud{position:absolute; inset:56px 12px auto 12px; display:flex; justify-content:space-between; pointer-events:none}
   .box{background:rgba(0,0,0,.35); border:1px solid rgba(255,255,255,.06); padding:7px 10px; border-radius:11px; color:var(--hud); font-weight:900; letter-spacing:.08em}
+  .effect{position:absolute; top:56px; left:50%; transform:translateX(-50%); pointer-events:none}
+  .effect .box{background:rgba(0,0,0,.35); border:1px solid rgba(255,255,255,.08); padding:6px 10px; border-radius:999px; font-weight:800; color:#bfe1ff}
   .overlay{position:absolute; inset:0; display:grid; place-items:center; text-align:center; background:linear-gradient(180deg, rgba(8,12,18,.7), rgba(8,12,18,.55)); opacity:0; pointer-events:none; transition:opacity .2s}
   .overlay.show{opacity:1; pointer-events:auto}
   .card{padding:18px; border-radius:14px; background:rgba(20,26,36,.76); border:1px solid rgba(255,255,255,.08)}
@@ -72,6 +75,7 @@
       <div class="box">SCORE <span id="score">0</span></div>
       <div class="box">BEST <span id="best">0</span></div>
     </div>
+    <div class="effect"><div class="box" id="effectBox" hidden>EFFECT: <span id="effectTxt"></span></div></div>
 
     <div class="overlay show" id="overlay">
       <div class="card">
@@ -82,12 +86,13 @@
           <button class="chip" id="muteBtn" aria-pressed="false">Mute</button>
           <button class="chip" id="shareBtn" hidden>Share</button>
         </div>
+        <p style="opacity:.75; font-size:12px; margin-top:10px">Foods: <b>Apple</b> (+1), <b>Chili</b> (Speed), <b>Ice</b> (Slow Boss), <b>Star</b> (x2 score)</p>
       </div>
     </div>
   </div>
 
   <footer>
-    <small>© Snake Boss v6.0</small>
+    <small>© Snake Boss v6.5</small>
     <a href="https://youtube.com/@niclasvestlund" target="_blank" rel="noopener">YouTube</a>
   </footer>
 </div>
@@ -103,18 +108,28 @@ const canvas=document.getElementById('game'); const ctx=canvas.getContext('2d',{
 const bg=document.getElementById('bg');
 function fit(){const dpr=Math.min(3,devicePixelRatio||1); const w=document.documentElement.clientWidth; const h=window.visualViewport?Math.floor(visualViewport.height):innerHeight; canvas.width=w*dpr; canvas.height=h*dpr; canvas.style.width=w+'px'; canvas.style.height=h+'px'; ctx.setTransform(dpr,0,0,dpr,0,0);} addEventListener('resize',fit,{passive:true}); if (window.visualViewport) visualViewport.addEventListener('resize',fit,{passive:true}); fit();
 
-// Game (same rules as desktop)
-let state='intro', rafId=0, acc=0, last=0; const STEP=1000/12, MAX_ACC=STEP*5;
+// Game
+let state='intro', rafId=0, acc=0, last=0; const baseSTEP=1000/12; let stepMul=1; function curSTEP(){return baseSTEP*stepMul;}
 let cols=0, rows=0, cell=22;
-let snake=[], sDir='RIGHT', grow=0, boss=[], bDir='LEFT', food={x:5,y:5};
+let snake=[], sDir='RIGHT', grow=0, boss=[], bDir='LEFT', bossTick=0, bossSlow=false, food={x:5,y:5,type:'apple'};
 let score=0, best=Number(localStorage.getItem('best')||0);
 document.getElementById('best').textContent=best;
+
+// effects
+let effect={type:null,t:0}; const effectBox=document.getElementById('effectBox'); const effectTxt=document.getElementById('effectTxt');
+function setEffect(t,ms){ effect.type=t; effect.t=ms;
+  if(t===null){effectBox.hidden=true; stepMul=1; bossSlow=false;}
+  else{ effectBox.hidden=false; effectTxt.textContent=(t==='chili'?'SPEED':t==='ice'?'SLOW BOSS':t==='star'?'DOUBLE SCORE':''); if(t==='chili')stepMul=.7; if(t==='ice')bossSlow=true; if(t==='star')stepMul=1; }
+}
 
 function layout(){ const w=canvas.clientWidth, h=canvas.clientHeight; cell=Math.max(16,Math.floor(Math.min(w,h)/28)); cols=Math.floor(w/cell); rows=Math.floor(h/cell);}
 function makeSnake(){const y=Math.floor(rows/2);return[{x:3,y},{x:2,y},{x:1,y}]}
 function makeBoss(){const y=Math.floor(rows/2);const x=cols-4;return[{x,y},{x:x+1,y},{x:x+2,y}]}
-function placeFood(){while(true){const x=(Math.random()*cols|0),y=(Math.random()*rows|0); if (![...snake,...boss].some(s=>s.x===x&&s.y===y)){food={x,y};return;}}}
-function reset(){layout(); snake=makeSnake(); sDir='RIGHT'; grow=0; boss=makeBoss(); bDir='LEFT'; placeFood(); score=0; setScore(0); shakeT=0; bossFlashT=0;}
+
+function rndFoodType(){ const r=Math.random(); if(r<0.70)return 'apple'; if(r<0.82)return 'chili'; if(r<0.94)return 'ice'; return 'star'; }
+function placeFood(){ while(true){ const x=(Math.random()*cols|0),y=(Math.random()*rows|0); if (![...snake,...boss].some(s=>s.x===x&&s.y===y)){ food={x,y,type:rndFoodType()}; return; } } }
+
+function reset(){layout(); snake=makeSnake(); sDir='RIGHT'; grow=0; boss=makeBoss(); bDir='LEFT'; bossTick=0; bossSlow=false; setEffect(null,0); placeFood(); score=0; setScore(0); shakeT=0; bossFlashT=0;}
 function setScore(v){ if (setScore._p!==v){ document.getElementById('score').textContent=v; setScore._p=v; }}
 
 // Overlay
@@ -145,37 +160,45 @@ function pulse(){ const el=bg; el.classList.remove('pulse'); void el.offsetWidth
 function shake(ms=120){ shakeT=ms; }
 
 // Step/render
+let bossTick=0;
 function step(){
   const h={...snake[0]}; if(sDir==='UP')h.y--; if(sDir==='DOWN')h.y++; if(sDir==='LEFT')h.x--; if(sDir==='RIGHT')h.x++;
   h.x=(h.x+cols)%cols; h.y=(h.y+rows)%rows;
   if (snake.some((s,i)=>i>0 && s.x===h.x && s.y===h.y)) return over('You bit yourself!');
   snake.unshift(h);
-  if(h.x===food.x&&h.y===food.y){grow+=2; score++; setScore(score); pulse(); gulp(); placeFood();}
+  if(h.x===food.x&&h.y===food.y){
+    if (food.type==='star'){ score+=2; setEffect('star',6000); }
+    else { score+=1; if (food.type==='chili') setEffect('chili',4000); if (food.type==='ice') setEffect('ice',4000); }
+    setScore(score); pulse(); gulp(); placeFood(); grow+=2;
+  }
   if(grow>0)grow--; else snake.pop();
 
-  const bh={...boss[0]}; const dx=Math.sign(food.x-bh.x), dy=Math.sign(food.y-bh.y);
-  if(Math.random()<0.6) bh.x+=dx!==0?dx:0; else bh.y+=dy!==0?dy:0;
-  bh.x=(bh.x+cols)%cols; bh.y=(bh.y+rows)%rows;
-  if (bh.x===h.x && bh.y===h.y) return over('Head-on collision!');
-  boss.unshift(bh);
-  if(bh.x===food.x&&bh.y===food.y){bossFlashT=180; shake(); pulse(); gulp(); placeFood();} else boss.pop();
+  bossTick ^= 1;
+  if (!(bossSlow && bossTick===1)){
+    const bh={...boss[0]}; const dx=Math.sign(food.x-bh.x), dy=Math.sign(food.y-bh.y);
+    if(Math.random()<0.6) bh.x+=dx!==0?dx:0; else bh.y+=dy!==0?dy:0;
+    bh.x=(bh.x+cols)%cols; bh.y=(bh.y+rows)%rows;
+    if (bh.x===h.x && bh.y===h.y) return over('Head-on collision!');
+    boss.unshift(bh);
+    if(bh.x===food.x&&bh.y===food.y){bossFlashT=180; shake(); pulse(); gulp(); placeFood();} else boss.pop();
+  }
 }
 
+function foodVar(t){ return t==='chili'?'--food-chili': t==='ice'?'--food-ice': t==='star'?'--food-star':'--food'; }
 function drawCell(cx,cy,varName,alpha=1){ const x=cx*cell,y=cy*cell; ctx.globalAlpha=alpha; ctx.fillStyle=getComputedStyle(document.documentElement).getPropertyValue(varName).trim()||'#fff'; ctx.fillRect(x+2,y+2,cell-4,cell-4); ctx.globalAlpha=1; }
-
 function render(){
   ctx.save();
   if(shakeT>0){ const m=Math.min(8,2+shakeT/20); ctx.translate((Math.random()*2-1)*m,(Math.random()*2-1)*m); shakeT-=16; }
   ctx.clearRect(0,0,canvas.clientWidth,canvas.clientHeight);
-  drawCell(food.x,food.y,'--food');
+  drawCell(food.x,food.y,foodVar(food.type));
   ctx.save(); if(bossFlashT>0){ ctx.globalAlpha=.7; bossFlashT-=16; } boss.forEach((p,i)=>drawCell(p.x,p.y,'--boss', i===0?1:0.85)); ctx.restore();
   snake.forEach((p,i)=>drawCell(p.x,p.y,'--snake', i===0?1:0.9));
   ctx.restore();
 }
 
-function loop(ts){ if(!last) last=ts; let dt=ts-last; last=ts; acc+=dt; if(acc>MAX_ACC) acc=MAX_ACC; while(acc>=STEP){ if(state==='playing') step(); acc-=STEP; } render(); rafId=requestAnimationFrame(loop); }
+function loop(ts){ if(!last) last=ts; let dt=ts-last; last=ts; if(effect.t>0){effect.t-=dt; if(effect.t<=0) setEffect(null,0);} acc+=dt; let stepMs=curSTEP(); if(acc>stepMs*5) acc=stepMs*5; while(acc>=stepMs){ if(state==='playing') step(); acc-=stepMs; stepMs=curSTEP(); } render(); rafId=requestAnimationFrame(loop); }
 
-function over(){ state='dead'; best=Math.max(best,score); localStorage.setItem('best',best); document.getElementById('best').textContent=best; show('Beat me to it!','Boss is getting stronger!'); if(navigator.share){shareBtn.hidden=false; shareBtn.onclick=()=>navigator.share({title:'Snake Boss',text:`I scored ${score} (Best ${best}) racing the AI boss!`,url:location.origin}).catch(()=>{}); }}
+function over(){ state='dead'; setEffect(null,0); best=Math.max(best,score); localStorage.setItem('best',best); document.getElementById('best').textContent=best; show('Beat me to it!','Boss is getting stronger!'); if(navigator.share){shareBtn.hidden=false; shareBtn.onclick=()=>navigator.share({title:'Snake Boss',text:`I scored ${score} (Best ${best}) racing the AI boss!`,url:location.origin}).catch(()=>{}); }}
 
 rafId=requestAnimationFrame(loop);
 show('Your move, human!','Hold & drag on the game area.');
