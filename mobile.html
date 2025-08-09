@@ -3,8 +3,10 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-<title>Snake Boss Survival — Mobile</title>
+<title>Snake Boss Survival v5.1b — Mobile</title>
 <meta name="theme-color" content="#0b0f1d">
+<link rel="manifest" href="manifest.json" />
+
 <style>
   :root{ --bg1:#0b0f1d; --bg2:#0e1730; --border:rgba(255,255,255,.12); --glass:rgba(17,25,48,.55);
          --food:#ff5470; --snake:#47d16e; --head:#caffdd; --boss:#7aa2f7; --bossHead:#d7e7ff; }
@@ -12,32 +14,49 @@
   body{margin:0; color:#e8f0ff; font-family:Inter,system-ui,Segoe UI,Roboto,Arial;
   background:linear-gradient(180deg,var(--bg1),var(--bg2)); display:grid; grid-template-rows:auto 1fr auto; padding:10px}
   header,footer{width:min(700px,100%); margin:0 auto; display:flex; align-items:center; justify-content:space-between; gap:8px}
-  .pill{padding:8px 12px; background:var(--glass); border:1px solid var(--border); border-radius:12px; backdrop-filter:blur(8px); font-size:14px}
+  .pill{padding:8px 12px; background:var(--glass); border:1px solid var(--border); border-radius:12px; backdrop-filter:blur(8px)}
   .frame{width:min(700px,100%); margin:0 auto}
   .stage{position:relative}
   canvas{width:100%; height:auto; aspect-ratio:9/16; background:#0a0f1a; border:1px solid var(--border); border-radius:20px; image-rendering:pixelated; touch-action:none}
-  .hud{position:absolute; top:8px; left:50%; transform:translateX(-50%); text-align:center; pointer-events:none}
-  .score{font:900 clamp(28px,8vw,48px)/1 Inter,system-ui; color:var(--head); text-shadow:0 6px 18px rgba(71,209,110,.45)}
-  .best{margin-top:4px; font:12px/1 Inter,system-ui; color:#b8c7e6; background:var(--glass); border:1px solid var(--border); padding:6px 10px; border-radius:12px}
-  #chip{position:absolute; right:10px; top:10px; background:var(--glass); border:1px solid var(--border); padding:6px 10px; border-radius:12px; font-size:12px}
+  .hud{position:absolute; top:10px; left:50%; transform:translateX(-50%); pointer-events:none; text-align:center}
+  .score{font:900 clamp(28px,8vw,48px)/1 Inter,system-ui; color:#e6f7ff; text-shadow:0 6px 18px rgba(71,209,110,.45)}
+  .best{font:12px/1 Inter,system-ui; color:#b8c7e6; background:var(--glass); border:1px solid var(--border);
+        padding:6px 10px; border-radius:12px; margin-top:4px}
+  .hero{position:absolute; inset:0; display:grid; place-items:center; background:linear-gradient(180deg,rgba(0,0,0,.35),rgba(0,0,0,.25)); border-radius:20px}
+  .cta{padding:12px 18px; border-radius:14px; background:linear-gradient(180deg,#10305a,#0b1b36); color:#e6f7ff; border:1px solid var(--border)}
+  a{color:#a6ffe0; text-decoration:none}
+  .mute{position:absolute; top:10px; right:10px; width:38px; height:38px; border-radius:10px; border:1px solid var(--border);
+      background:var(--glass); color:#e8f0ff; font-size:18px; display:grid; place-items:center}
+  .mute[aria-pressed="true"]{opacity:.7}
+  .score{transition:transform .15s ease}.score.pulse{transform:scale(1.15);}
 </style>
 </head>
 <body>
 <header>
-  <div style="font-weight:800">Snake Boss Survival — Mobile</div>
-  <div>
-    <a class="pill" href="index.html">💻 Byt till desktop</a>
+  <div style="font-weight:800; display:flex; align-items:center; gap:8px">
+    <img src="icon-192.png" alt="" width="18" height="18" style="border-radius:4px"> Snake Boss Survival — Mobile
   </div>
+  <div><a class="pill" href="index.html">💻 Desktop</a></div>
 </header>
 
 <div class="frame">
   <div class="stage">
-    <canvas id="cv" width="540" height="960"></canvas>
+    <canvas id="cv"></canvas>
     <div class="hud">
       <div id="score" class="score">0</div>
       <div class="best">👑 Rekord: <span id="best">0</span></div>
     </div>
-    <div id="chip">👉 Håll & dra på spelplanen</div>
+    <button id="mute" class="mute" aria-pressed="false" title="Mute/Unmute">🔊</button>
+    <div id="hero" class="hero">
+      <div style="display:grid; place-items:center; gap:10px; text-align:center">
+        <div style="font-weight:900; font-size:clamp(22px,6vw,38px); color:#8dfcc1; text-shadow:0 0 22px rgba(141,252,193,.45)">
+          SNAKE BOSS SURVIVAL
+        </div>
+        <div style="color:#cfe1ff">Ät före bossen. Undvik krockar. Slå rekordet.</div>
+        <button id="start" class="cta">▶ Starta</button>
+        <div style="font-size:12px; color:#cfe1ff">Mobil: håll & dra på spelplanen</div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -49,12 +68,33 @@
 </footer>
 
 <script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./service-worker.js').catch(()=>{});
+  });
+}
+
+// Stoppa musiken när sidan tappas/stängs
+function haltAudio(){ try{ ui.bgm.pause(); ui.bgm.currentTime = 0; }catch(e){} }
+window.addEventListener('pagehide', haltAudio, {capture:true});
+window.addEventListener('beforeunload', haltAudio);
+window.addEventListener('blur', haltAudio);
+document.addEventListener('visibilitychange', ()=>{ if (document.hidden) haltAudio(); });
+Array.from(document.querySelectorAll('a')).forEach(a=>a.addEventListener('click', haltAudio));
+
+// Mute/Unmute state (persist via localStorage)
+let MUTED = localStorage.getItem('sbs_muted') === '1';
+function applyMute(){ try{ ui.bgm.muted = MUTED; }catch(e){} const btn = document.getElementById('mute'); if(btn){ btn.setAttribute('aria-pressed', MUTED?'true':'false'); btn.textContent = MUTED ? '🔇' : '🔊'; } }
+function toggleMute(){ MUTED = !MUTED; localStorage.setItem('sbs_muted', MUTED ? '1' : '0'); applyMute(); if (!MUTED){ try{ ui.bgm.play().catch(()=>{});}catch(e){} } }
+
+
 (()=>{
 const cv=document.getElementById('cv'), ctx=cv.getContext('2d');
-const ui={score:byId('score'), best:byId('best'), chip:byId('chip'), bgm:byId('bgm')};
+const ui={score:byId('score'), best:byId('best'), hero:byId('hero'), start:byId('start'), bgm:byId('bgm')};
 function byId(id){return document.getElementById(id)}
-let cols=20, rows=28, cell=20, padX=0,padY=0; // vertikal grid
 
+// sizing
+let cols=20, rows=28, cell=20, padX=0,padY=0;
 function resize(){
   const rect=cv.getBoundingClientRect();
   const dpr=Math.min(2, devicePixelRatio||1);
@@ -65,8 +105,9 @@ function resize(){
 }
 addEventListener('resize', resize); setTimeout(resize);
 
+// game state
 let running=false, loop=null, tickMs=120;
-let snake, dir='right', nextDir='right', food, score=0, best=parseInt(localStorage.getItem('sbs_best_mob')||'0');
+let snake, dir='right', nextDir='right', food, score=0, best=parseInt(localStorage.getItem('sbs_best_mob_v51b')||'0');
 let boss, bossAlt=false, shieldTicks=10, lastGlow='default', bossEasy=40;
 
 function reset(){
@@ -77,44 +118,41 @@ function reset(){
   boss=[{x:cols-5,y:by},{x:cols-6,y:by},{x:cols-7,y:by}];
   food=safeFood(); score=0; ui.score.textContent=0; ui.best.textContent=best;
   bossEasy=40; shieldTicks=10; lastGlow='default';
+  document.getElementById('mute').onclick = toggleMute; applyMute();
 }
+
 function safeFood(){ let c; do{ c={x:(Math.random()*cols)|0,y:(Math.random()*rows)|0}; }while(onSnakeOrBoss(c)||dist(c,snake[0])<8||dist(c,boss[0])<8); return c; }
 function onSnakeOrBoss(p){ return snake.some(s=>s.x===p.x&&s.y===p.y)||boss.some(b=>b.x===p.x&&b.y===p.y); }
 function dist(a,b){ return Math.abs(a.x-b.x)+Math.abs(a.y-b.y); }
 function wrap(v,m){ return (v+m)%m; }
 
-// Start on first touch anywhere on canvas
-let swStartX=0, swStartY=0, swActive=false; const DEAD=22, SNAP=90; let lastSnap=0;
-cv.addEventListener('touchstart',(e)=>{ 
-  const t=e.touches[0]; swStartX=t.clientX; swStartY=t.clientY; swActive=true; e.preventDefault();
-  if(!running) { running=true; try{ ui.bgm.volume=.3; ui.bgm.play().catch(()=>{});}catch(e){}; loop=setInterval(()=>{ tick(); draw(); }, tickMs); ui.chip.style.opacity=.3; }
-},{passive:false});
-cv.addEventListener('touchmove',(e)=>{
-  if(!swActive) return; const t=e.touches[0]; const dx=t.clientX-swStartX, dy=t.clientY-swStartY;
-  if(Math.hypot(dx,dy)<DEAD) return; const now=performance.now(); if(now-lastSnap<SNAP) return;
-  if(Math.abs(dx)>Math.abs(dy)) setDir(dx>0?'right':'left'); else setDir(dy>0?'down':'up'); lastSnap=now; e.preventDefault();
-},{passive:false});
-cv.addEventListener('touchend',()=>{ swActive=false; },{passive:true});
+function start(){
+  if(running) return;
+  running=true; ui.hero.style.display='none';
+  try{ ui.bgm.volume=.30; if(!MUTED) ui.bgm.play().catch(()=>{}); }catch(e){}
+  if(loop) clearInterval(loop);
+  loop=setInterval(()=>{ tick(); draw(); }, tickMs);
+}
+document.getElementById('start').onclick = start;
+document.getElementById('cv').addEventListener('click', ()=>start());
+
+let swStartX=0, swStartY=0, swActive=false; const DEAD=22, SNAP=90; let lastSnap=0; cv.addEventListener('touchstart',(e)=>{ const t=e.touches[0]; swStartX=t.clientX; swStartY=t.clientY; swActive=true; e.preventDefault(); if(!running) start();},{passive:false}); cv.addEventListener('touchmove',(e)=>{ if(!swActive) return; const t=e.touches[0]; const dx=t.clientX-swStartX, dy=t.clientY-swStartY; if(Math.hypot(dx,dy)<DEAD) return; const now=performance.now(); if(now-lastSnap<SNAP) return; if(Math.abs(dx)>Math.abs(dy)) setDir(dx>0?'right':'left'); else setDir(dy>0?'down':'up'); lastSnap=now; e.preventDefault(); },{passive:false}); cv.addEventListener('touchend',()=>{ swActive=false; },{passive:true});
 
 function setDir(d){ const m={up:[0,-1],down:[0,1],left:[-1,0],right:[1,0]}; const [dx,dy]=m[d],[cx,cy]=m[dir]; if(dx===-cx&&dy===-cy)return; nextDir=d; }
 
 function tick(){
   const m={up:[0,-1],down:[0,1],left:[-1,0],right:[1,0]}, [dx,dy]=m[nextDir];
   const head={x:wrap(snake[0].x+dx,cols), y:wrap(snake[0].y+dy,rows)};
-  if(shieldTicks<=0){
-    if(snake.some((s,i)=>i&&s.x===head.x&&s.y===head.y)) return gameOver();
-    if(boss.some(b=>b.x===head.x&&b.y===head.y)) return gameOver();
-  } else shieldTicks--;
+  if(shieldTicks<=0){ if(snake.some((s,i)=>i&&s.x===head.x&&s.y===head.y)) return gameOver(); if(boss.some(b=>b.x===head.x&&b.y===head.y)) return gameOver(); } else shieldTicks--;
   snake.unshift(head); dir=nextDir;
 
   if(head.x===food.x&&head.y===food.y){
-    score++; ui.score.textContent=score;
-    if(score>best){ best=score; localStorage.setItem('sbs_best_mob',best); ui.best.textContent=best; }
-    if(score>=15) lastGlow='gold'; else if(score>=10) lastGlow='purple'; else if(score>=5) lastGlow='blue';
-    food=safeFood();
+    score++; ui.score.textContent=score; ui.score.classList.add('pulse'); setTimeout(()=>ui.score.classList.remove('pulse'),160);
+    if(score>best){ best=score; localStorage.setItem('sbs_best_mob_v51b',best); ui.best.textContent=best; }
+    if(score>=15) lastGlow='gold'; else if(score>=10) lastGlow='purple'; else if(score>=5) lastGlow='blue'; food=safeFood();
   } else snake.pop();
 
-  let mult=bossEasy>0?0.5:1; bossEasy=Math.max(0,bossEasy-1);
+  let mult = bossEasy>0 ? 0.5 : 1; bossEasy=Math.max(0,bossEasy-1);
   const steps=((bossAlt?2:1)*mult|0)||1*mult|0; bossAlt=!bossAlt;
   for(let i=0;i<steps;i++){ bossStep(); if(boss[0].x===food.x&&boss[0].y===food.y){ food=safeFood(); break; } }
 }
@@ -123,32 +161,25 @@ function bossStep(){
   opts.sort((a,b)=>(Math.abs((h.x+a.x)-food.x)+Math.abs((h.y+a.y)-food.y))-(Math.abs((h.x+b.x)-food.x)+Math.abs((h.y+b.y)-food.y)));
   const n={x:wrap(h.x+opts[0].x,cols), y:wrap(h.y+opts[0].y,rows)}; boss.unshift(n); boss.pop();
 }
-function gameOver(){
-  clearInterval(loop); running=false;
-  // Quick restart: wait a beat then reset and show chip hint again
-  setTimeout(()=>{ reset(); draw(); ui.chip.style.opacity=1; }, 300);
-}
+function gameOver(){ if(loop) clearInterval(loop); running=false; setTimeout(()=>{ reset(); draw(); }, 300); }
 
 function draw(){
-  const w=cv.getBoundingClientRect().width, h=cv.getBoundingClientRect().height;
+  const rect=cv.getBoundingClientRect(), w=rect.width, h=rect.height;
   ctx.clearRect(0,0,w,h);
-  // grid
   for(let y=0;y<rows;y++){ for(let x=0;x<cols;x++){ ctx.globalAlpha=((x+y)%2===0)?0.06:0.04; ctx.fillStyle='#7aa2f7'; ctx.fillRect(padX+x*cell,padY+y*cell,cell,cell);} } ctx.globalAlpha=1;
-  // food
   const t=Date.now()*0.004, bob=Math.sin(t*2)*2, fx=padX+food.x*cell+4, fy=padY+food.y*cell+4+bob, pulse=(Math.sin(t*3)*0.5+0.5)*0.3+0.7;
   ctx.fillStyle='#ff5470'; ctx.globalAlpha=pulse; ctx.fillRect(fx,fy,cell-8,cell-8); ctx.globalAlpha=1;
-  // snake
   let glow='#2cff96'; if(lastGlow==='blue') glow='rgba(125,211,252,0.8)'; if(lastGlow==='purple') glow='rgba(192,132,252,0.85)'; if(lastGlow==='gold') glow='rgba(255,209,102,0.9)';
   for(let i=snake.length-1;i>=0;i--){ const s=snake[i], head=i===0;
     if(head){ ctx.fillStyle=glow; ctx.globalAlpha=.25; ctx.fillRect(padX+s.x*cell,padY+s.y*cell,cell,cell); ctx.globalAlpha=1; ctx.fillStyle='#caffdd'; }
     else ctx.fillStyle='#47d16e';
     roundRect(padX+s.x*cell+1,padY+s.y*cell+1,cell-2,cell-2,6); ctx.fill();
   }
-  // boss
   for(let i=boss.length-1;i>=0;i--){ const b=boss[i], head=i===0; ctx.fillStyle=head?'#d7e7ff':'#7aa2f7'; roundRect(padX+b.x*cell+2,padY+b.y*cell+2,cell-4,cell-4,6); ctx.fill(); }
 }
 function roundRect(x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
-reset(); draw();
+
+reset(); resize(); draw();
 })();
 </script>
 </body>
