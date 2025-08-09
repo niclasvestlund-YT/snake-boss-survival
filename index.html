@@ -10,7 +10,7 @@
   :root{
     --bg0:#0a0f17; --bg1:#0e1320; --g1:#00FFE0; --g2:#00A2FF; --g3:#7B61FF;
     --grid-a:rgba(255,255,255,.06); --grid-b:rgba(0,0,0,0); --vign:rgba(0,0,0,.45);
-    --hud:#c8d4e7; --hud-dim:#6f7a8b; --chip:#1e2a3b;
+    --hud:#c8d4e7; --chip:#1e2a3b;
     --snake:#3eea62; --boss:#ff6f6f;
     --food:#ffd24a; --food-chili:#ff4d4d; --food-ice:#4dd5ff; --food-star:#ffe76a;
   }
@@ -20,8 +20,7 @@
   header, footer{display:flex; align-items:center; justify-content:space-between; padding:12px 16px; background:rgba(10,15,23,.85); backdrop-filter:saturate(1.2) blur(10px)}
   header .left, header .right{display:flex; gap:8px; align-items:center}
   .logo{width:18px;height:18px; border-radius:4px; background:url('snake_boss_logo.png') center/cover no-repeat}
-  .chip{background:var(--chip); color:#bfe1ff; border:1px solid rgba(255,255,255,.08); padding:8px 12px; border-radius:12px; font-weight:600; cursor:pointer; user-select:none}
-  .chip:focus{outline:2px solid #3aa3ff}
+  .chip{background:var(--chip); color:#bfe1ff; border:1px solid rgba(255,255,255,.08); padding:8px 12px; border-radius:12px; font-weight:600; user-select:none}
   .hud{position:absolute; inset:64px 16px auto 16px; display:flex; justify-content:space-between; pointer-events:none}
   .hud .box{background:rgba(0,0,0,.35); border:1px solid rgba(255,255,255,.06); padding:8px 12px; border-radius:12px; color:var(--hud); font-weight:800; letter-spacing:.08em}
   .effect{position:absolute; top:64px; left:50%; transform:translateX(-50%); pointer-events:none}
@@ -58,10 +57,11 @@
   @media (prefers-reduced-motion:reduce){.bg{animation:none}}
 </style>
 <script>
-// Redirect phones to mobile page
-const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-const isSmall = Math.min(window.innerWidth, window.innerHeight) < 820;
-if ((isTouch || isSmall) && !location.pathname.endsWith('mobile.html')) {
+// Redirect only if SMALL screen AND touch, and no desktop=1
+const params = new URLSearchParams(location.search);
+const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+const isSmall = Math.min(window.innerWidth, window.innerHeight) < 900;
+if (!params.has('desktop') && isTouch && isSmall && !location.pathname.endsWith('mobile.html')) {
   location.replace('mobile.html');
 }
 </script>
@@ -75,7 +75,6 @@ if ((isTouch || isSmall) && !location.pathname.endsWith('mobile.html')) {
     </div>
     <div class="right">
       <button class="chip" id="themeBtn" title="Change theme">Theme</button>
-      <a class="chip" href="mobile.html" title="Open Mobile">Mobile</a>
     </div>
   </header>
 
@@ -104,7 +103,7 @@ if ((isTouch || isSmall) && !location.pathname.endsWith('mobile.html')) {
   </div>
 
   <footer>
-    <small>© Snake Boss v6.5</small>
+    <small>© Snake Boss v6.6</small>
     <a href="https://youtube.com/@niclasvestlund" target="_blank" rel="noopener">YouTube</a>
   </footer>
 </div>

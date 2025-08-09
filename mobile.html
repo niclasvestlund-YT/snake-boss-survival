@@ -24,7 +24,7 @@
   .bg, canvas{position:absolute; inset:0; display:block}
   canvas{touch-action:none}
   .hud{position:absolute; inset:56px 12px auto 12px; display:flex; justify-content:space-between; pointer-events:none}
-  .box{background:rgba(0,0,0,.35); border:1px solid rgba(255,255,255,.06); padding:7px 10px; border-radius:11px; color:var(--hud); font-weight:900; letter-spacing:.08em}
+  .box{background:rgba(0,0,0,.35); border:1px solid rgba(255,255,255,.06); padding:7px 10px; border-radius:11px; color:#c8d4e7; font-weight:900; letter-spacing:.08em}
   .effect{position:absolute; top:56px; left:50%; transform:translateX(-50%); pointer-events:none}
   .effect .box{background:rgba(0,0,0,.35); border:1px solid rgba(255,255,255,.08); padding:6px 10px; border-radius:999px; font-weight:800; color:#bfe1ff}
   .overlay{position:absolute; inset:0; display:grid; place-items:center; text-align:center; background:linear-gradient(180deg, rgba(8,12,18,.7), rgba(8,12,18,.55)); opacity:0; pointer-events:none; transition:opacity .2s}
@@ -63,7 +63,6 @@
     </div>
     <div style="display:flex;gap:8px">
       <button class="chip" id="themeBtn">Theme</button>
-      <a class="chip" href="index.html">Desktop</a>
     </div>
   </header>
 
@@ -92,7 +91,7 @@
   </div>
 
   <footer>
-    <small>© Snake Boss v6.5</small>
+    <small>© Snake Boss v6.6</small>
     <a href="https://youtube.com/@niclasvestlund" target="_blank" rel="noopener">YouTube</a>
   </footer>
 </div>
@@ -146,7 +145,7 @@ canvas.addEventListener('pointerdown',e=>{down=true; sx=e.clientX; sy=e.clientY;
 canvas.addEventListener('pointermove',e=>{ if(!down||state!=='playing')return; const dx=e.clientX-sx, dy=e.clientY-sy; const dist=Math.hypot(dx,dy); if(dist<12) return; const ang=((Math.atan2(dy,dx)*180/Math.PI)+360)%360; let dir; if(ang>=45&&ang<135)dir='DOWN'; else if(ang>=135&&ang<225)dir='LEFT'; else if(ang>=225&&ang<315)dir='UP'; else dir='RIGHT'; turn(dir); navigator.vibrate?.(8); sx=e.clientX; sy=e.clientY; },{passive:true});
 addEventListener('pointerup',()=>down=false,{passive:true});
 
-function turn(dir){ if((dir==='UP'&&sDir==='DOWN')||(dir==='DOWN'&&sDir==='UP')||(dir==='LEFT'&&sDir==='RIGHT')||(dir==='RIGHT'&&sDir==='LEFT'))return; sDir=dir; }
+function turn(dir){ if((dir==='UP'&&sDir==='DOWN')||(dir==='DOWN'&&sDir==='UP')||(dir==='LEFT')&&sDir==='RIGHT'||(dir==='RIGHT'&&sDir==='LEFT'))return; sDir=dir; }
 
 // Audio
 let audioOn=true; const AC=window.AudioContext||window.webkitAudioContext; const ac=new AC(); let gulpBuf;
@@ -196,7 +195,7 @@ function render(){
   ctx.restore();
 }
 
-function loop(ts){ if(!last) last=ts; let dt=ts-last; last=ts; if(effect.t>0){effect.t-=dt; if(effect.t<=0) setEffect(null,0);} acc+=dt; let stepMs=curSTEP(); if(acc>stepMs*5) acc=stepMs*5; while(acc>=stepMs){ if(state==='playing') step(); acc-=stepMs; stepMs=curSTEP(); } render(); rafId=requestAnimationFrame(loop); }
+function loop(ts){ if(!last) last=ts; let dt=ts-last; last=ts; if(effect.t>0){effect.t-=dt; if(effect.t<=0) setEffect(null,0);} acc+=dt; let stepMs=baseSTEP*stepMul; if(acc>stepMs*5) acc=stepMs*5; while(acc>=stepMs){ if(state==='playing') step(); acc-=stepMs; stepMs=baseSTEP*stepMul; } render(); rafId=requestAnimationFrame(loop); }
 
 function over(){ state='dead'; setEffect(null,0); best=Math.max(best,score); localStorage.setItem('best',best); document.getElementById('best').textContent=best; show('Beat me to it!','Boss is getting stronger!'); if(navigator.share){shareBtn.hidden=false; shareBtn.onclick=()=>navigator.share({title:'Snake Boss',text:`I scored ${score} (Best ${best}) racing the AI boss!`,url:location.origin}).catch(()=>{}); }}
 
