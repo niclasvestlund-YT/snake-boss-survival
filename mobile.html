@@ -2,61 +2,42 @@
 <html lang="sv">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Snake Boss Survival — Desktop</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+<title>Snake Boss Survival — Mobile</title>
 <meta name="theme-color" content="#0b0f1d">
-<script>
-// Auto-redirect mobiles to mobile.html
-if (/Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
-  location.replace('mobile.html');
-}
-</script>
 <style>
   :root{ --bg1:#0b0f1d; --bg2:#0e1730; --border:rgba(255,255,255,.12); --glass:rgba(17,25,48,.55);
          --food:#ff5470; --snake:#47d16e; --head:#caffdd; --boss:#7aa2f7; --bossHead:#d7e7ff; }
-  *{box-sizing:border-box} html,body{height:100%} body{margin:0; color:#e8f0ff; font-family:Inter,system-ui,Segoe UI,Roboto,Arial;
-  background:linear-gradient(180deg,var(--bg1),var(--bg2)); display:grid; grid-template-rows:auto 1fr auto; padding:12px}
-  header,footer{width:min(1200px,100%); margin:0 auto; display:flex; align-items:center; justify-content:space-between; gap:8px}
-  .pill{padding:8px 12px; background:var(--glass); border:1px solid var(--border); border-radius:12px; backdrop-filter:blur(8px)}
-  .frame{width:min(1200px,100%); margin:0 auto}
+  *{box-sizing:border-box} html,body{height:100%}
+  body{margin:0; color:#e8f0ff; font-family:Inter,system-ui,Segoe UI,Roboto,Arial;
+  background:linear-gradient(180deg,var(--bg1),var(--bg2)); display:grid; grid-template-rows:auto 1fr auto; padding:10px}
+  header,footer{width:min(700px,100%); margin:0 auto; display:flex; align-items:center; justify-content:space-between; gap:8px}
+  .pill{padding:8px 12px; background:var(--glass); border:1px solid var(--border); border-radius:12px; backdrop-filter:blur(8px); font-size:14px}
+  .frame{width:min(700px,100%); margin:0 auto}
   .stage{position:relative}
-  canvas{width:100%; height:auto; aspect-ratio:16/10; background:#0a0f1a; border:1px solid var(--border); border-radius:20px; image-rendering:pixelated}
-  .hud{position:absolute; top:10px; left:50%; transform:translateX(-50%); pointer-events:none}
-  .score{font:900 clamp(26px,6vw,52px)/1 Inter,system-ui; color:var(--head); text-shadow:0 6px 18px rgba(71,209,110,.45)}
-  .best{font:12px/1 Inter,system-ui; color:#b8c7e6; text-align:center; background:var(--glass); border:1px solid var(--border);
-        padding:6px 10px; border-radius:12px; margin-top:4px}
-  .hero{position:absolute; inset:0; display:grid; place-items:center; background:linear-gradient(180deg,rgba(0,0,0,.35),rgba(0,0,0,.25)); border-radius:20px}
-  .cta{padding:12px 18px; border-radius:14px; background:linear-gradient(180deg,#10305a,#0b1b36); color:#e6f7ff; border:1px solid var(--border)}
-  a{color:#a6ffe0; text-decoration:none}
+  canvas{width:100%; height:auto; aspect-ratio:9/16; background:#0a0f1a; border:1px solid var(--border); border-radius:20px; image-rendering:pixelated; touch-action:none}
+  .hud{position:absolute; top:8px; left:50%; transform:translateX(-50%); text-align:center; pointer-events:none}
+  .score{font:900 clamp(28px,8vw,48px)/1 Inter,system-ui; color:var(--head); text-shadow:0 6px 18px rgba(71,209,110,.45)}
+  .best{margin-top:4px; font:12px/1 Inter,system-ui; color:#b8c7e6; background:var(--glass); border:1px solid var(--border); padding:6px 10px; border-radius:12px}
+  #chip{position:absolute; right:10px; top:10px; background:var(--glass); border:1px solid var(--border); padding:6px 10px; border-radius:12px; font-size:12px}
 </style>
 </head>
 <body>
 <header>
-  <div style="font-weight:800">Snake Boss Survival — Desktop</div>
+  <div style="font-weight:800">Snake Boss Survival — Mobile</div>
   <div>
-    <a class="pill" href="mobile.html">📱 Byt till mobilversion</a>
+    <a class="pill" href="index.html">💻 Byt till desktop</a>
   </div>
 </header>
 
 <div class="frame">
   <div class="stage">
-    <canvas id="cv" width="960" height="600"></canvas>
-
+    <canvas id="cv" width="540" height="960"></canvas>
     <div class="hud">
       <div id="score" class="score">0</div>
       <div class="best">👑 Rekord: <span id="best">0</span></div>
     </div>
-
-    <div id="hero" class="hero">
-      <div style="display:grid; place-items:center; gap:10px; text-align:center">
-        <div style="font-weight:900; font-size:clamp(22px,6vw,38px); color:#8dfcc1; text-shadow:0 0 22px rgba(141,252,193,.45)">
-          SNAKE BOSS SURVIVAL
-        </div>
-        <div style="color:#cfe1ff">Ät före bossen. Undvik krockar. Slå rekordet.</div>
-        <button id="start" class="cta">▶ Starta</button>
-        <div style="font-size:12px; color:#cfe1ff">Desktop: klicka på spelplanen eller tryck Space</div>
-      </div>
-    </div>
+    <div id="chip">👉 Håll & dra på spelplanen</div>
   </div>
 </div>
 
@@ -64,17 +45,16 @@ if (/Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
 
 <footer>
   <div>Made by <strong>Niclas Vestlund</strong></div>
-  <div>
-    <a href="https://www.youtube.com/@niclasvestlundYT" target="_blank">YouTube</a>
-  </div>
+  <div><a href="https://www.youtube.com/@niclasvestlundYT" target="_blank">YouTube</a></div>
 </footer>
 
 <script>
 (()=>{
 const cv=document.getElementById('cv'), ctx=cv.getContext('2d');
-const ui={score:byId('score'), best:byId('best'), hero:byId('hero'), start:byId('start'), bgm:byId('bgm')};
+const ui={score:byId('score'), best:byId('best'), chip:byId('chip'), bgm:byId('bgm')};
 function byId(id){return document.getElementById(id)}
-let cols=30, rows=20, cell=20, padX=0,padY=0;
+let cols=20, rows=28, cell=20, padX=0,padY=0; // vertikal grid
+
 function resize(){
   const rect=cv.getBoundingClientRect();
   const dpr=Math.min(2, devicePixelRatio||1);
@@ -85,13 +65,13 @@ function resize(){
 }
 addEventListener('resize', resize); setTimeout(resize);
 
-let running=false, paused=false, loop=null, tickMs=120;
-let snake, dir='right', nextDir='right', food, score=0, best=parseInt(localStorage.getItem('sbs_best_idx')||'0');
+let running=false, loop=null, tickMs=120;
+let snake, dir='right', nextDir='right', food, score=0, best=parseInt(localStorage.getItem('sbs_best_mob')||'0');
 let boss, bossAlt=false, shieldTicks=10, lastGlow='default', bossEasy=40;
 
 function reset(){
   const sy=(rows/2)|0;
-  snake=[{x:(cols/2)|0-5,y:sy},{x:(cols/2)|0-6,y:sy},{x:(cols/2)|0-7,y:sy}];
+  snake=[{x:(cols/2)|0-4,y:sy},{x:(cols/2)|0-5,y:sy},{x:(cols/2)|0-6,y:sy}];
   dir='right'; nextDir='right';
   const by=Math.max(2, sy-6);
   boss=[{x:cols-5,y:by},{x:cols-6,y:by},{x:cols-7,y:by}];
@@ -103,27 +83,21 @@ function onSnakeOrBoss(p){ return snake.some(s=>s.x===p.x&&s.y===p.y)||boss.some
 function dist(a,b){ return Math.abs(a.x-b.x)+Math.abs(a.y-b.y); }
 function wrap(v,m){ return (v+m)%m; }
 
-function start(){
-  if(running) return;
-  running=true; paused=false; ui.hero.style.display='none';
-  try{ ui.bgm.volume=.35; ui.bgm.play().catch(()=>{});}catch(e){}
-  if(loop) clearInterval(loop);
-  loop=setInterval(()=>{ if(!paused){ tick(); draw(); }}, tickMs);
-}
-ui.start.onclick=start;
-ui.hero.addEventListener('click', ()=>start());
-cv.addEventListener('click', ()=>start());
-cv.addEventListener('mousedown', ()=>start());
-addEventListener('keydown', (e)=>{
-  const k=e.key.toLowerCase();
-  if(k===' ') start();
-  if(k==='arrowup'||k==='w') setDir('up');
-  else if(k==='arrowdown'||k==='s') setDir('down');
-  else if(k==='arrowleft'||k==='a') setDir('left');
-  else if(k==='arrowright'||k==='d') setDir('right');
-});
+// Start on first touch anywhere on canvas
+let swStartX=0, swStartY=0, swActive=false; const DEAD=22, SNAP=90; let lastSnap=0;
+cv.addEventListener('touchstart',(e)=>{ 
+  const t=e.touches[0]; swStartX=t.clientX; swStartY=t.clientY; swActive=true; e.preventDefault();
+  if(!running) { running=true; try{ ui.bgm.volume=.3; ui.bgm.play().catch(()=>{});}catch(e){}; loop=setInterval(()=>{ tick(); draw(); }, tickMs); ui.chip.style.opacity=.3; }
+},{passive:false});
+cv.addEventListener('touchmove',(e)=>{
+  if(!swActive) return; const t=e.touches[0]; const dx=t.clientX-swStartX, dy=t.clientY-swStartY;
+  if(Math.hypot(dx,dy)<DEAD) return; const now=performance.now(); if(now-lastSnap<SNAP) return;
+  if(Math.abs(dx)>Math.abs(dy)) setDir(dx>0?'right':'left'); else setDir(dy>0?'down':'up'); lastSnap=now; e.preventDefault();
+},{passive:false});
+cv.addEventListener('touchend',()=>{ swActive=false; },{passive:true});
 
 function setDir(d){ const m={up:[0,-1],down:[0,1],left:[-1,0],right:[1,0]}; const [dx,dy]=m[d],[cx,cy]=m[dir]; if(dx===-cx&&dy===-cy)return; nextDir=d; }
+
 function tick(){
   const m={up:[0,-1],down:[0,1],left:[-1,0],right:[1,0]}, [dx,dy]=m[nextDir];
   const head={x:wrap(snake[0].x+dx,cols), y:wrap(snake[0].y+dy,rows)};
@@ -135,13 +109,12 @@ function tick(){
 
   if(head.x===food.x&&head.y===food.y){
     score++; ui.score.textContent=score;
-    if(score>best){ best=score; localStorage.setItem('sbs_best_idx',best); ui.best.textContent=best; }
+    if(score>best){ best=score; localStorage.setItem('sbs_best_mob',best); ui.best.textContent=best; }
     if(score>=15) lastGlow='gold'; else if(score>=10) lastGlow='purple'; else if(score>=5) lastGlow='blue';
     food=safeFood();
   } else snake.pop();
 
-  // boss
-  let mult = bossEasy>0 ? 0.5 : 1; bossEasy=Math.max(0,bossEasy-1);
+  let mult=bossEasy>0?0.5:1; bossEasy=Math.max(0,bossEasy-1);
   const steps=((bossAlt?2:1)*mult|0)||1*mult|0; bossAlt=!bossAlt;
   for(let i=0;i<steps;i++){ bossStep(); if(boss[0].x===food.x&&boss[0].y===food.y){ food=safeFood(); break; } }
 }
@@ -151,8 +124,9 @@ function bossStep(){
   const n={x:wrap(h.x+opts[0].x,cols), y:wrap(h.y+opts[0].y,rows)}; boss.unshift(n); boss.pop();
 }
 function gameOver(){
-  running=false;
-  setTimeout(()=>{ ui.hero.style.display='grid'; ui.start.textContent='▶ Spela igen'; reset(); draw(); }, 300);
+  clearInterval(loop); running=false;
+  // Quick restart: wait a beat then reset and show chip hint again
+  setTimeout(()=>{ reset(); draw(); ui.chip.style.opacity=1; }, 300);
 }
 
 function draw(){
