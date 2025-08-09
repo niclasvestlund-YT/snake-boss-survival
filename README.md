@@ -1,17 +1,8 @@
-# Snake Boss v6.7 — Hype Edition
+# Snake Boss v6.8 — Dash & Combo
 
-## What’s new
-- **True centered grid** with offsets → no “hidden” playfield edges.
-- **Countdown start** (quick 3-2-1) with punchy blips.
-- **Power-ups expanded**: Portal (two teleports), Shockwave (trims boss) + existing Apple/Chili/Ice/Star.
-- **Particles + pulses** on pickups and events.
-- **Boss taunts** on steals.
-- **Background**: brighter dopamine glow-grid.
-
-## Controls
-- Desktop: Space to start, Arrows/WASD to turn.
-- Mobile: Hold & drag.
-
-## Tech
-- Fixed-step loop, DPR-aware canvas, centered grid with `offsetX/offsetY` applied to all renders.
-- PWA cache bump `sb-v6-7`.
+- Boss dash bursts every 3–6s (canceled by ICE).
+- Difficulty ramps with score (up to ~35% faster).
+- Apple **combo**: eat apples within 3s to build COMBO xN (max x5). Apple score = 1 + (combo-1).
+- Tuning: faster base speed, slightly more power-ups, star rarer.
+- Juicy feedback kept from v6.7 (particles, pulses, taunts).
+- Centered grid with proper wrap. PWA cache `sb-v6-8`.

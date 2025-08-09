@@ -38,7 +38,6 @@
   .subtitle{margin:0 0 16px; color:#9fb0c8}
   .btn{padding:10px 16px; border-radius:999px; border:1px solid rgba(255,255,255,.12); background:#14324f; color:#d9eaff; font-weight:700; cursor:pointer}
   footer a{color:#bfe1ff; text-decoration:none}
-  /* Dopamine background */
   .bg{
     pointer-events:none;
     background:
@@ -58,7 +57,7 @@
   @media (prefers-reduced-motion:reduce){.bg{animation:none}}
 </style>
 <script>
-// Redirect only if SMALL screen AND touch, and no desktop=1
+// Redirect only if SMALL screen AND touch
 const params = new URLSearchParams(location.search);
 const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
 const isSmall = Math.min(window.innerWidth, window.innerHeight) < 900;
@@ -75,7 +74,7 @@ if (!params.has('desktop') && isTouch && isSmall && !location.pathname.endsWith(
       <strong>Snake Boss — Desktop</strong>
     </div>
     <div class="right">
-      <button class="chip" id="themeBtn">Theme</button>
+      <button class="chip" id="themeBtn" title="Change theme">Theme</button>
     </div>
   </header>
 
@@ -88,15 +87,15 @@ if (!params.has('desktop') && isTouch && isSmall && !location.pathname.endsWith(
       <div class="box">SCORE <span id="score">0</span></div>
       <div class="box">BEST <span id="best">0</span></div>
     </div>
-    <div class="effect"><div class="box" id="effectBox" hidden>EFFECT: <span id="effectTxt"></span></div></div>
+    <div class="effect"><div class="box" id="effectBox" hidden><span id="effectTxt"></span></div></div>
 
     <div class="overlay show" id="overlay">
       <div class="card">
-        <h1 class="title" id="ovTitle">Ready?</h1>
-        <p class="subtitle" id="ovMsg">Beat the boss to the food. Head-on = game over.</p>
+        <h1 class="title" id="ovTitle">3</h1>
+        <p class="subtitle" id="ovMsg">Get ready!</p>
         <button class="btn" id="playBtn">Start</button>
         <p style="opacity:.75; font-size:12px; margin-top:10px">
-          Foods: <b>Apple</b> (+1), <b>Chili</b> (Speed), <b>Ice</b> (Slow Boss), <b>Star</b> (x2 score),
+          Foods: <b>Apple</b> (+combo), <b>Chili</b> (Speed), <b>Ice</b> (Slow Boss), <b>Star</b> (x2 score),
           <b>Portal</b> (teleport), <b>Shock</b> (trim boss)
         </p>
       </div>
@@ -104,327 +103,175 @@ if (!params.has('desktop') && isTouch && isSmall && !location.pathname.endsWith(
   </div>
 
   <footer>
-    <small>© Snake Boss v6.7</small>
+    <small>© Snake Boss v6.8</small>
     <a href="https://youtube.com/@niclasvestlund" target="_blank" rel="noopener">YouTube</a>
   </footer>
 </div>
 
 <script>
-// ---------- Theme handling ----------
-const THEMES = {
-  neonNight:{bg0:'#070b12',bg1:'#0e1320',g1:'#00FFE0',g2:'#00A2FF',g3:'#7B61FF'},
-  cyberSunset:{bg0:'#1a0f17',bg1:'#2a0f24',g1:'#FF7A00',g2:'#FF3D81',g3:'#FFD166'},
-  arcticPop:{bg0:'#091216',bg1:'#0c1b24',g1:'#7EE8FA',g2:'#EEC0C6',g3:'#B8FF6A'},
-};
-function setTheme(name){ const t=THEMES[name]||THEMES.neonNight; const r=document.documentElement;
-  r.style.setProperty('--bg0',t.bg0); r.style.setProperty('--bg1',t.bg1);
-  r.style.setProperty('--g1',t.g1); r.style.setProperty('--g2',t.g2); r.style.setProperty('--g3',t.g3);
-  localStorage.setItem('theme',name);
-}
+// Theme
+const THEMES={neonNight:{bg0:'#070b12',bg1:'#0e1320',g1:'#00FFE0',g2:'#00A2FF',g3:'#7B61FF'},cyberSunset:{bg0:'#1a0f17',bg1:'#2a0f24',g1:'#FF7A00',g2:'#FF3D81',g3:'#FFD166'},arcticPop:{bg0:'#091216',bg1:'#0c1b24',g1:'#7EE8FA',g2:'#EEC0C6',g3:'#B8FF6A'}};
+function setTheme(name){const t=THEMES[name]||THEMES.neonNight;const r=document.documentElement;r.style.setProperty('--bg0',t.bg0);r.style.setProperty('--bg1',t.bg1);r.style.setProperty('--g1',t.g1);r.style.setProperty('--g2',t.g2);r.style.setProperty('--g3',t.g3);localStorage.setItem('theme',name);}
 setTheme(localStorage.getItem('theme')||'neonNight');
-document.getElementById('themeBtn').onclick=()=>{
-  const order=['neonNight','cyberSunset','arcticPop']; const cur=localStorage.getItem('theme')||order[0];
-  const next=order[(order.indexOf(cur)+1)%order.length]; setTheme(next);
-};
+document.getElementById('themeBtn').onclick=()=>{const order=['neonNight','cyberSunset','arcticPop'];const cur=localStorage.getItem('theme')||order[0];const next=order[(order.indexOf(cur)+1)%order.length];setTheme(next);};
 
-// ---------- Canvas & loop ----------
-const canvas = document.getElementById('game');
-const ctx = canvas.getContext('2d', { alpha:false });
-ctx.imageSmoothingEnabled = false;
-const bg = document.getElementById('bg');
-const tauntEl = document.getElementById('taunt');
+// Canvas
+const canvas=document.getElementById('game'); const ctx=canvas.getContext('2d',{alpha:false}); ctx.imageSmoothingEnabled=false;
+const bg=document.getElementById('bg'); const tauntEl=document.getElementById('taunt');
+function fit(){const dpr=Math.min(3,devicePixelRatio||1); const w=document.documentElement.clientWidth; const h=window.visualViewport?Math.floor(visualViewport.height):innerHeight; canvas.width=w*dpr; canvas.height=h*dpr; canvas.style.width=w+'px'; canvas.style.height=h+'px'; ctx.setTransform(dpr,0,0,dpr,0,0);} addEventListener('resize',fit,{passive:true}); if (window.visualViewport) visualViewport.addEventListener('resize',fit,{passive:true}); fit();
 
-function fitCanvas(){
-  const dpr = Math.min(3, window.devicePixelRatio||1);
-  const w = document.documentElement.clientWidth;
-  const h = window.visualViewport ? Math.floor(window.visualViewport.height) : window.innerHeight;
-  canvas.width = w*dpr; canvas.height = h*dpr;
-  canvas.style.width = w+'px'; canvas.style.height = h+'px';
-  ctx.setTransform(dpr,0,0,dpr,0,0);
-}
-addEventListener('resize', fitCanvas, {passive:true});
-if (window.visualViewport) visualViewport.addEventListener('resize', fitCanvas, {passive:true});
-fitCanvas();
-
-// ---------- Game state ----------
+// State
 let state='intro', rafId=0, acc=0, last=0;
-const baseSTEP=1000/12; let stepMul=1;
-function curSTEP(){ return baseSTEP*stepMul; }
-let cols=0, rows=0, cell=24;
-let offsetX=0, offsetY=0;
+const baseSTEP=1000/14; // faster
+let stepMul=1;
+function speedFactor(){ return 1 - Math.min(0.35, score*0.01); }
+function curSTEP(){ return baseSTEP * stepMul * speedFactor(); }
+
+let cols=0, rows=0, cell=24, offsetX=0, offsetY=0;
 let snake=[], sDir='RIGHT', grow=0;
-let boss=[], bDir='LEFT', bossTick=0, bossSlow=false;
+let boss=[], bDir='LEFT', bossSlow=false, bossDashT=0, bossDashCD=2000+Math.random()*2000;
 let food={x:10,y:10,type:'apple'};
-let score=0, best=Number(localStorage.getItem('best')||0);
-document.getElementById('best').textContent = best;
+let score=0, best=Number(localStorage.getItem('best')||0); document.getElementById('best').textContent=best;
 
 // particles
-const particles=[];
-function addBurst(x,y,color){
-  for(let i=0;i<14;i++){
-    particles.push({x:x*cell+offsetX+cell/2, y:y*cell+offsetY+cell/2, vx:(Math.random()*2-1)*3, vy:(Math.random()*2-1)*3, a:1, c:color});
-  }
-}
+const particles=[]; function addBurst(x,y,c){ for(let i=0;i<12;i++){ particles.push({x:x*cell+offsetX+cell/2,y:y*cell+offsetY+cell/2,vx:(Math.random()*2-1)*3,vy:(Math.random()*2-1)*3,a:1,c}); } }
+
+// combo
+let combo=0, comboTimer=0;
+function setCombo(n){ combo=n; comboTimer = n>0 ? 3000 : 0; if(n>1) showEffect('COMBO x'+n); }
 
 // effects / HUD
-let effect={type:null, t:0};
+let effect={type:null,t:0};
 const effectBox=document.getElementById('effectBox'); const effectTxt=document.getElementById('effectTxt');
-function setEffect(t,ms){
-  effect.type=t; effect.t=ms;
-  if (t===null){ effectBox.hidden=true; stepMul=1; bossSlow=false; portals=null; }
-  else{
-    effectBox.hidden=false; effectTxt.textContent = (t==='chili'?'SPEED': t==='ice'?'SLOW BOSS': t==='star'?'DOUBLE SCORE': t==='portal'?'PORTALS': t==='shock'?'SHOCKWAVE':'');
-    if (t==='chili') stepMul=0.7;
-    if (t==='ice') bossSlow=true;
-    if (t==='star') stepMul=1;
-    if (t==='portal') {/*only HUD*/}
-    if (t==='shock') {/*instant*/}
-  }
-}
+function showEffect(txt){ effectBox.hidden=false; effectTxt.textContent=txt; }
+function clearEffect(){ effectBox.hidden=true; effectTxt.textContent=''; }
+function setEffect(t,ms){ effect.type=t; effect.t=ms; if(t===null){ clearEffect(); stepMul=1; bossSlow=false; portals=null; } else { if(t==='chili'){stepMul=.7; showEffect('SPEED');} if(t==='ice'){bossSlow=true; showEffect('SLOW BOSS');} if(t==='star')showEffect('DOUBLE SCORE'); if(t==='portal')showEffect('PORTALS'); if(t==='shock')showEffect('SHOCKWAVE'); } }
 
-// grid sizing + centered offsets (fixes hidden playfield)
-function layoutGrid(){
-  const w = canvas.clientWidth, h = canvas.clientHeight;
-  cell = Math.max(16, Math.floor(Math.min(w,h)/28));
-  cols = Math.floor(w/cell); rows = Math.floor(h/cell);
-  const gridW = cols*cell, gridH = rows*cell;
-  offsetX = Math.floor((w - gridW)/2);
-  offsetY = Math.floor((h - gridH)/2);
-}
-layoutGrid();
+// grid
+function layout(){ const w=canvas.clientWidth, h=canvas.clientHeight; cell=Math.max(16,Math.floor(Math.min(w,h)/28)); cols=Math.floor(w/cell); rows=Math.floor(h/cell); const gridW=cols*cell, gridH=rows*cell; offsetX=Math.floor((w-gridW)/2); offsetY=Math.floor((h-gridH)/2); }
+layout();
 
 function makeSnake(){ const y=Math.floor(rows/2); return [{x:3,y},{x:2,y},{x:1,y}]; }
 function makeBoss(){ const y=Math.floor(rows/2); const x=cols-4; return [{x,y},{x:x+1,y},{x:x+2,y}]; }
 
-function rndFoodType(){
-  const r=Math.random();
-  if (r<0.60) return 'apple';
-  if (r<0.74) return 'chili';
-  if (r<0.86) return 'ice';
-  if (r<0.94) return 'star';
-  return Math.random()<0.5?'portal':'shock';
-}
-function placeFood(){
-  while(true){
-    const x = (Math.random()*cols|0), y=(Math.random()*rows|0);
-    if (![...snake,...boss].some(s=>s.x===x && s.y===y)){ food={x,y,type:rndFoodType()}; return; }
-  }
-}
+function rndFoodType(){ const r=Math.random(); if(r<0.58)return 'apple'; if(r<0.72)return 'chili'; if(r<0.84)return 'ice'; if(r<0.93)return 'star'; return Math.random()<0.5?'portal':'shock'; }
+function placeFood(){ while(true){ const x=(Math.random()*cols|0),y=(Math.random()*rows|0); if (![...snake,...boss].some(s=>s.x===x&&s.y===y)){ food={x,y,type:rndFoodType()}; return; } } }
 
-function resetGame(){
-  layoutGrid();
-  snake = makeSnake(); sDir='RIGHT'; grow=0;
-  boss = makeBoss(); bDir='LEFT'; bossTick=0; bossSlow=false;
-  setEffect(null,0);
-  placeFood();
-  score=0; setScore(score);
-  shakeT=0; bossFlashT=0;
-  particles.length=0;
-}
+function resetGame(){ layout(); snake=makeSnake(); sDir='RIGHT'; grow=0; boss=makeBoss(); bossSlow=false; bossDashT=0; bossDashCD=2000+Math.random()*2000; setEffect(null,0); setCombo(0); placeFood(); score=0; setScore(score); shakeT=0; bossFlashT=0; particles.length=0; }
 
 function setScore(v){ if (setScore._p!==v){ document.getElementById('score').textContent=v; setScore._p=v; }}
 
-// ---------- Overlay + countdown ----------
-const overlay=document.getElementById('overlay');
-const ovTitle=document.getElementById('ovTitle');
-const ovMsg=document.getElementById('ovMsg');
-const playBtn=document.getElementById('playBtn');
-
-function showOverlay(title,msg){ ovTitle.textContent=title; ovMsg.textContent=msg; overlay.classList.add('show'); overlay.style.pointerEvents='auto'; }
+// overlay
+const overlay=document.getElementById('overlay'); const ovTitle=document.getElementById('ovTitle'); const ovMsg=document.getElementById('ovMsg'); const playBtn=document.getElementById('playBtn');
+function showOverlay(t,m){ ovTitle.textContent=t; ovMsg.textContent=m; overlay.classList.add('show'); overlay.style.pointerEvents='auto'; }
 function hideOverlay(){ overlay.classList.remove('show'); overlay.style.pointerEvents='none'; }
+playBtn.onclick=()=>{ let n=3; resetGame(); ovTitle.textContent=n; ovMsg.textContent='Get ready!'; const tick=()=>{ if(n>1){n--; ovTitle.textContent=n; setTimeout(tick,500);} else { hideOverlay(); state='playing'; } }; tick(); };
 
-playBtn.onclick = ()=>countdownStart();
+// Input
+addEventListener('keydown',(e)=>{ if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' ','Space','KeyW','KeyA','KeyS','KeyD'].includes(e.code)) e.preventDefault(); if(state!=='playing' && (e.code==='Space'||e.code==='Enter')) playBtn.onclick(); const k=e.code; if(state==='playing'){ if(k==='ArrowUp'||k==='KeyW') turn('UP'); if(k==='ArrowDown'||k==='KeyS') turn('DOWN'); if(k==='ArrowLeft'||k==='KeyA') turn('LEFT'); if(k==='ArrowRight'||k==='KeyD') turn('RIGHT'); } },{passive:false});
+function turn(dir){ if((dir==='UP'&&sDir==='DOWN')||(dir==='DOWN'&&sDir==='UP')||(dir==='LEFT'&&sDir==='RIGHT')||(dir==='RIGHT'&&sDir==='LEFT')) return; sDir=dir; }
 
-function countdownStart(){
-  resetGame();
-  let n=3;
-  ovTitle.textContent = n; ovMsg.textContent = 'Get ready!';
-  const tick = ()=>{
-    if(n>1){ n--; ovTitle.textContent=n; setTimeout(tick,500); }
-    else{ hideOverlay(); state='playing'; }
-  };
-  tick();
-}
 
-// ---------- Input (desktop) ----------
-addEventListener('keydown', (e)=>{
-  if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' ','Space','KeyW','KeyA','KeyS','KeyD'].includes(e.code)) e.preventDefault();
-  if (state!=='playing' && (e.code==='Space' || e.code==='Enter')) countdownStart();
-  const key=e.code;
-  if (state==='playing'){
-    if (key==='ArrowUp'||key==='KeyW') turn('UP');
-    if (key==='ArrowDown'||key==='KeyS') turn('DOWN');
-    if (key==='ArrowLeft'||key==='KeyA') turn('LEFT');
-    if (key==='ArrowRight'||key==='KeyD') turn('RIGHT');
-  }
-}, {passive:false});
-
-// ---------- Audio ----------
-let audioOn = true;
-const AudioCtx = window.AudioContext||window.webkitAudioContext;
-const ac = new AudioCtx();
-let gulpBuf;
+// Touch/drag (also works on desktop trackpad)
+let down=false, sx=0, sy=0;
+canvas.addEventListener('pointerdown',e=>{down=true; sx=e.clientX; sy=e.clientY;},{passive:true});
+canvas.addEventListener('pointermove',e=>{
+  if(!down||state!=='playing')return;
+  const dx=e.clientX-sx, dy=e.clientY-sy;
+  const dist=Math.hypot(dx,dy);
+  if(dist<12) return;
+  const ang=((Math.atan2(dy,dx)*180/Math.PI)+360)%360;
+  let dir;
+  if(ang>=45&&ang<135)dir='DOWN';
+  else if(ang>=135&&ang<225)dir='LEFT';
+  else if(ang>=225&&ang<315)dir='UP';
+  else dir='RIGHT';
+  turn(dir);
+  navigator.vibrate?.(8);
+  sx=e.clientX; sy=e.clientY;
+},{passive:true});
+addEventListener('pointerup',()=>down=false,{passive:true});
+// Audio
+let audioOn=true; const AC=window.AudioContext||window.webkitAudioContext; const ac=new AC(); let gulpBuf;
 fetch('soundtrack.mp3').then(r=>r.arrayBuffer()).then(b=>ac.decodeAudioData(b)).then(buf=>gulpBuf=buf).catch(()=>{});
-function playGulp(){ if(!audioOn||!gulpBuf) return; const s=ac.createBufferSource(); s.buffer=gulpBuf; s.connect(ac.destination); s.start(0); }
-function playBlip(freq=600,ms=80){ if(!audioOn) return; const o=ac.createOscillator(); const g=ac.createGain(); o.type='square'; o.frequency.value=freq; g.gain.value=.04; o.connect(g); g.connect(ac.destination); o.start(); setTimeout(()=>{o.stop();},ms); }
-document.getElementById('themeBtn').onclick=()=>{ac.resume();};
+function gulp(){ if(!audioOn||!gulpBuf) return; const s=ac.createBufferSource(); s.buffer=gulpBuf; s.connect(ac.destination); s.start(0); }
+function blip(f=640,ms=80){ if(!audioOn) return; const o=ac.createOscillator(); const g=ac.createGain(); o.type='square'; o.frequency.value=f; g.gain.value=.04; o.connect(g); g.connect(ac.destination); o.start(); setTimeout(()=>o.stop(),ms); }
 
-// ---------- Effects ----------
-let shakeT=0, bossFlashT=0;
-function pulse(){ bg.classList.remove('pulse'); void bg.offsetWidth; bg.classList.add('pulse'); }
-function triggerShake(ms=120){ shakeT=ms; }
+// Effects
+let shakeT=0, bossFlashT=0; function pulse(){ bg.classList.remove('pulse'); void bg.offsetWidth; bg.classList.add('pulse'); } function shake(ms=120){ shakeT=ms; }
+let portals=null;
 
-// Portals
-let portals=null; // {a:{x,y}, b:{x,y}, t:ms}
-
-// ---------- Game logic ----------
-function turn(dir){
-  if ((dir==='UP'&&sDir==='DOWN')||(dir==='DOWN'&&sDir==='UP')||(dir==='LEFT'&&sDir==='RIGHT')||(dir==='RIGHT'&&sDir==='LEFT')) return;
-  sDir=dir;
-}
-
+// Step
+let curDt=16;
 function step(){
-  // player
-  const head={...snake[0]};
-  if (sDir==='UP') head.y--; if (sDir==='DOWN') head.y++; if (sDir==='LEFT') head.x--; if (sDir==='RIGHT') head.x++;
-  // wrap
+  const head={...snake[0]}; if(sDir==='UP')head.y--; if(sDir==='DOWN')head.y++; if(sDir==='LEFT')head.x--; if(sDir==='RIGHT')head.x++;
   head.x=(head.x+cols)%cols; head.y=(head.y+rows)%rows;
-
-  // portals
-  if (portals){
-    if (head.x===portals.a.x && head.y===portals.a.y){ head.x=portals.b.x; head.y=portals.b.y; playBlip(740,90); }
-    else if (head.x===portals.b.x && head.y===portals.b.y){ head.x=portals.a.x; head.y=portals.a.y; playBlip(740,90); }
-  }
-
-  // collide with self
-  if (snake.some((s,i)=>i>0 && s.x===head.x && s.y===head.y)) return gameOver('You bit yourself!');
+  if (portals){ if(head.x===portals.a.x&&head.y===portals.a.y){ head.x=portals.b.x; head.y=portals.b.y; blip(760,90);} else if(head.x===portals.b.x&&head.y===portals.b.y){ head.x=portals.a.x; head.y=portals.a.y; blip(760,90);} }
+  if (snake.some((s,i)=>i>0 && s.x===head.x && s.y===head.y)) return over('You bit yourself!');
   snake.unshift(head);
-  if (head.x===food.x && head.y===food.y){
-    // apply food
-    addBurst(head.x, head.y, getVar(foodColorVar(food.type)));
-    if (food.type==='star'){ score+=2; setEffect('star', 6000); }
-    else if (food.type==='portal'){ setEffect('portal', 6000); portals = { a:randCell(), b:randCell(), t:6000 }; score+=1; }
-    else if (food.type==='shock'){ setEffect('shock',1500); trimBoss(4); score+=1; }
-    else { score+=1; if (food.type==='chili') setEffect('chili', 4000); if (food.type==='ice') setEffect('ice', 4000); }
-    setScore(score); pulse(); playGulp(); placeFood(); grow+=2;
+  if(head.x===food.x && head.y===food.y){
+    addBurst(head.x,head.y,getVar(foodVar(food.type)));
+    if (food.type==='apple'){ setCombo(Math.min(5, combo+1)); const bonus = combo>1 ? combo-1 : 0; score += 1 + bonus; }
+    else { setCombo(0); if(food.type==='star') score+=2; else score+=1; }
+    if (food.type==='chili') setEffect('chili',4000);
+    if (food.type==='ice') setEffect('ice',4000);
+    if (food.type==='star') setEffect('star',6000);
+    if (food.type==='portal'){ setEffect('portal',6000); portals={a:rand(),b:rand(),t:6000}; }
+    if (food.type==='shock'){ setEffect('shock',1500); trimBoss(4); }
+    setScore(score); pulse(); gulp(); placeFood(); grow+=2;
   }
-  if (grow>0) { grow--; } else { snake.pop(); }
+  if(grow>0)grow--; else snake.pop();
 
-  // boss AI
-  bossTick ^= 1;
-  if (!(bossSlow && bossTick===1)){
-    const bhead={...boss[0]};
-    const dx = Math.sign(food.x - bhead.x);
-    const dy = Math.sign(food.y - bhead.y);
-    if (Math.random()<0.6){
-      bhead.x += dx!==0 ? dx : 0;
-    } else {
-      bhead.y += dy!==0 ? dy : 0;
-    }
-    bhead.x=(bhead.x+cols)%cols; bhead.y=(bhead.y+rows)%rows;
-    if (bhead.x===head.x && bhead.y===head.y) return gameOver('Head-on collision!');
-    boss.unshift(bhead);
-    if (bhead.x===food.x && bhead.y===food.y){
-      bossFlashT=180; triggerShake(); pulse(); playGulp(); placeFood();
-      taunt('Mine!');
-    } else {
-      boss.pop();
-    }
+  // boss dash logic
+  bossDashCD -= curDt;
+  if (bossDashCD<=0 && bossDashT<=0){ bossDashT=900; bossDashCD = 3000 + Math.random()*3000; taunt('Dash!'); }
+  if (effect.type==='ice') bossDashT = 0;
+
+  const steps = bossDashT>0 ? 2 : 1;
+  for(let k=0;k<steps;k++){
+    const bh={...boss[0]}; const dx=Math.sign(food.x-bh.x), dy=Math.sign(food.y-bh.y);
+    if(Math.random()<0.6) bh.x+=dx!==0?dx:0; else bh.y+=dy!==0?dy:0;
+    bh.x=(bh.x+cols)%cols; bh.y=(bh.y+rows)%rows;
+    if (bh.x===head.x && bh.y===head.y) return over('Head-on collision!');
+    boss.unshift(bh);
+    if(bh.x===food.x && bh.y===food.y){ bossFlashT=180; shake(); pulse(); gulp(); placeFood(); taunt('Mine!'); } else boss.pop();
   }
 }
 
-function randCell(){ return { x: (Math.random()*cols|0), y: (Math.random()*rows|0) }; }
-function trimBoss(n=3){ while(boss.length>3 && n-->0) boss.pop(); triggerShake(220); taunt('Nice try!'); }
+function taunt(text){ tauntEl.textContent=text; tauntEl.classList.add('show'); setTimeout(()=>tauntEl.classList.remove('show'), 500); }
+function rand(){ return {x:(Math.random()*cols|0),y:(Math.random()*rows|0)}; }
+function trimBoss(n=3){ while(boss.length>3 && n-->0) boss.pop(); shake(220); }
+function foodVar(t){ return t==='chili'?'--food-chili': t==='ice'?'--food-ice': t==='star'?'--food-star': t==='portal'?'--food-portal': t==='shock'?'--food-shock':'--food'; }
+function getVar(name){ return getComputedStyle(document.documentElement).getPropertyValue(name).trim()||'#fff'; }
+function drawCell(cx,cy,varName,alpha=1){ const x=offsetX+cx*cell, y=offsetY+cy*cell; ctx.globalAlpha=alpha; ctx.fillStyle=getVar(varName); ctx.fillRect(x+2,y+2,cell-4,cell-4); ctx.globalAlpha=1; }
 
 function render(){
   ctx.save();
-  if (shakeT>0){ const m=Math.min(8,2+shakeT/20); ctx.translate((Math.random()*2-1)*m,(Math.random()*2-1)*m); shakeT-=16; }
-
-  // clear
+  if(shakeT>0){ const m=Math.min(8,2+shakeT/20); ctx.translate((Math.random()*2-1)*m,(Math.random()*2-1)*m); shakeT-=16; }
   ctx.clearRect(0,0,canvas.clientWidth,canvas.clientHeight);
-
-  // subtle visible playfield
-  ctx.globalAlpha=.08; ctx.fillStyle='#fff';
-  ctx.fillRect(offsetX, offsetY, cols*cell, rows*cell);
-  ctx.globalAlpha=1;
-
-  // portals
-  if (portals){
-    drawCell(portals.a.x,portals.a.y,'--food-portal',.9);
-    drawCell(portals.b.x,portals.b.y,'--food-portal',.9);
-  }
-
-  // food
-  drawFood(food);
-
-  // boss
-  ctx.save(); if (bossFlashT>0){ ctx.globalAlpha=0.7; bossFlashT-=16; }
-  boss.forEach((p,i)=>drawCell(p.x,p.y, '--boss', i===0?1:0.85));
-  ctx.restore();
-
-  // snake
-  snake.forEach((p,i)=>drawCell(p.x,p.y, '--snake', i===0?1:0.9));
-
-  // particles
-  for(let i=particles.length-1;i>=0;i--){
-    const p=particles[i]; p.x+=p.vx; p.y+=p.vy; p.a-=0.02; if(p.a<=0){particles.splice(i,1); continue;}
-    ctx.globalAlpha=Math.max(0,p.a); ctx.fillStyle=p.c; ctx.fillRect(p.x-2,p.y-2,4,4); ctx.globalAlpha=1;
-  }
-
+  ctx.globalAlpha=.08; ctx.fillStyle='#fff'; ctx.fillRect(offsetX,offsetY,cols*cell,rows*cell); ctx.globalAlpha=1;
+  if (portals){ drawCell(portals.a.x,portals.a.y,'--food-portal',.9); drawCell(portals.b.x,portals.b.y,'--food-portal',.9); }
+  drawCell(food.x,food.y,foodVar(food.type));
+  ctx.save(); if(bossFlashT>0){ ctx.globalAlpha=.7; bossFlashT-=16; } boss.forEach((p,i)=>drawCell(p.x,p.y,'--boss', i===0?1:0.85)); ctx.restore();
+  snake.forEach((p,i)=>drawCell(p.x,p.y,'--snake', i===0?1:0.9));
+  for(let i=particles.length-1;i>=0;i--){ const p=particles[i]; p.x+=p.vx; p.y+=p.vy; p.a-=.02; if(p.a<=0){particles.splice(i,1); continue;} ctx.globalAlpha=Math.max(0,p.a); ctx.fillStyle=p.c; ctx.fillRect(p.x-2,p.y-2,4,4); ctx.globalAlpha=1; }
   ctx.restore();
 }
 
-function taunt(text){
-  tauntEl.textContent=text; tauntEl.classList.add('show'); setTimeout(()=>tauntEl.classList.remove('show'), 500);
-}
+function loop(ts){ if(!last) last=ts; const dt=ts-last; last=ts; curDt=dt;
+  if(effect.t>0){ effect.t-=dt; if(effect.t<=0) setEffect(null,0); }
+  if(portals){ portals.t-=dt; if(portals.t<=0) portals=null; }
+  if(bossDashT>0) bossDashT-=dt;
+  if(comboTimer>0){ comboTimer-=dt; if(comboTimer<=0) setCombo(0); }
+  acc+=dt; let stepMs=curSTEP(); if(acc>stepMs*5) acc=stepMs*5; while(acc>=stepMs){ if(state==='playing') step(); acc-=stepMs; stepMs=curSTEP(); } render(); rafId=requestAnimationFrame(loop); }
 
-function foodColorVar(t){
-  if (t==='chili') return '--food-chili';
-  if (t==='ice') return '--food-ice';
-  if (t==='star') return '--food-star';
-  if (t==='portal') return '--food-portal';
-  if (t==='shock') return '--food-shock';
-  return '--food';
-}
-function drawFood(f){ drawCell(f.x,f.y, foodColorVar(f.type)); }
-function getVar(name){ return getComputedStyle(document.documentElement).getPropertyValue(name).trim()||'#fff'; }
-function drawCell(cx,cy,varName,alpha=1){
-  const x=offsetX+cx*cell, y=offsetY+cy*cell;
-  ctx.globalAlpha=alpha;
-  ctx.fillStyle=getVar(varName);
-  ctx.fillRect(x+2,y+2,cell-4,cell-4);
-  ctx.globalAlpha=1;
-}
+function over(){ state='dead'; setEffect(null,0); setCombo(0); best=Math.max(best,score); localStorage.setItem('best',best); document.getElementById('best').textContent=best; showOverlay('Beat me to it!','Boss is getting stronger!'); }
 
-function frame(ts){
-  if (!last) last=ts;
-  let dt=ts-last; last=ts;
-  // timers
-  if (effect.t>0){ effect.t -= dt; if (effect.t<=0) setEffect(null,0); }
-  if (portals){ portals.t -= dt; if (portals.t<=0) portals=null; }
-  acc+=dt;
-  let stepMs = curSTEP();
-  if (acc>stepMs*5) acc=stepMs*5;
-  while (acc>=stepMs){ if(state==='playing') step(); acc-=stepMs; stepMs = curSTEP(); }
-  render();
-  rafId=requestAnimationFrame(frame);
-}
-
-function startLoop(){ if (!rafId) rafId=requestAnimationFrame(frame); }
-startLoop();
-showOverlay('Ready?','Beat the boss to the food. Head-on = game over.');
-
-// Game over
-function gameOver(){
-  state='dead';
-  setEffect(null,0);
-  best = Math.max(best, score); localStorage.setItem('best', best); document.getElementById('best').textContent=best;
-  showOverlay('Beat me to it!','Boss is getting stronger!');
-}
+rafId=requestAnimationFrame(loop);
+showOverlay('3','Get ready!');
 </script>
 
 <script>
-// PWA
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', ()=>navigator.serviceWorker.register('service-worker.js'));
 }
